@@ -97,13 +97,13 @@ The resulting `invite_code` will be a standard kind, which cannot be used to inv
     hostname: String,
     socks5: uint,
     social_root: String,
+    genesis_filter: uint,
 }
 ```
 #### Output
 ```json
 {
     members:Vec<Member>,
-    genesis_filter: uint,
 }
 ```
 ```json
@@ -166,11 +166,12 @@ AnnouncementKind{
 ```
 
 ### create_post
-`path` follows the given application standard: `m/kind'/reset'/index'`
+`path` follows the given application standard: `m/kind'/reset'/reset'/index'`
 
 `Preferences` uses `kind` = 0
 `Message` uses `kind` = 1
 `Secret` uses `kind` = 2
+`Xpub` uses `kind` = 3
 
 `path` field must be managed by the user. It must be incremented for every new post to achieve forward secrecy at the `index` level.
 
