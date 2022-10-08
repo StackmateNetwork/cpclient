@@ -39,6 +39,8 @@ They can be filtered by providing this field, which will only return entries mad
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
 }
 ```
@@ -54,6 +56,8 @@ They can be filtered by providing this field, which will only return entries mad
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
     username: String,
 }
@@ -71,6 +75,8 @@ Only applicable to privileged users created by the admin.
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
     invite_code: String,
 }
@@ -88,6 +94,8 @@ The resulting `invite_code` will be a standard kind, which cannot be used to inv
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
 }
 ```
@@ -109,6 +117,8 @@ Member{
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
     genesis_filter: uint,
 }
@@ -141,6 +151,8 @@ AnnouncementKind{
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String, 
     to: String,
     kind: AnnouncementKind,
@@ -169,6 +181,8 @@ When in doubt, increment the `reset` path or always use a random nonce; to ensur
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
     to: String,
     kind: PayloadKind,
@@ -195,6 +209,8 @@ Use the same `path` value as the post made. This is required to ensure recipient
 
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
     path: String,
     post_id: String,
@@ -213,6 +229,8 @@ Use the same `path` value as the post made. This is required to ensure recipient
 #### Input
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
     genesis_filter: uint,
 }
@@ -259,6 +277,8 @@ Removes an identity and all associated badges and posts.
 
 ```json
 {
+    hostname: String,
+    socks5: uint,
     social_root: String,
 }
 ```
