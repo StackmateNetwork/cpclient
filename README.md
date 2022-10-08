@@ -271,6 +271,26 @@ Preferences{
     muted: Vec<String>,
 }
 ```
+
+### get_single_post
+Get a single post by id. To be used as notification stream provides post_ids.
+
+#### Input
+```json
+{
+    hostname: String,
+    socks5: uint,
+    social_root: String,
+    post_id: uint,
+}
+```
+#### Output
+```json
+{
+    post: PlainPost,
+}
+```
+
 ### delete_identity
 
 Removes an identity and all associated badges and posts.
@@ -286,5 +306,25 @@ Removes an identity and all associated badges and posts.
 ```json
 {
     status: bool,
+}
+```
+
+### NOTIFICATION STREAM
+
+The notification stream api must be handled by the client. To help with this use the following helper functions:
+
+#### create_stream_headers
+
+```json
+{
+    social_root: String,
+}
+```
+#### Output
+```json
+{
+    pubkey: String,
+    nonce: String,
+    signature: String
 }
 ```
