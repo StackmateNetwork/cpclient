@@ -24,9 +24,8 @@ pub fn nonce()->String{
 }
 
 pub fn cc20p1305_encrypt(plaintext:&str, key: &str)->Result<String,S5Error>{
-    let formatted = key_hash256(key);
-    let shortened = formatted.as_str()[..32].as_bytes();
-    let encryption_key = Key::from_slice(shortened);
+    let key = hex::decode(key_hash256(key)).unwrap();
+    let encryption_key = Key::from_slice(&key);
     let aead = XChaCha20Poly1305::new(encryption_key);
     let nonce = nonce();
     let nonce = XNonce::from_slice(nonce.as_bytes()); 
@@ -37,9 +36,8 @@ pub fn cc20p1305_encrypt(plaintext:&str, key: &str)->Result<String,S5Error>{
     Ok(format!("{}:{}",base64::encode(nonce),base64::encode(&ciphertext)))
 }
 pub fn cc20p1305_decrypt(ciphertext:&str, key: &str)->Result<String,S5Error>{
-    let formatted = key_hash256(key);
-    let shortened = formatted.as_str()[..32].as_bytes();
-    let encryption_key = Key::from_slice(shortened);
+    let key = hex::decode(key_hash256(key)).unwrap();
+    let encryption_key = Key::from_slice(&key);
     let aead = XChaCha20Poly1305::new(encryption_key);
     let iter:Vec<&str> = ciphertext.split(':').collect();
     let nonce_slice = match base64::decode(&iter[0].as_bytes()){
