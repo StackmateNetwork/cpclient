@@ -209,6 +209,7 @@ Use the same `path` value as the post made. This is required to ensure recipient
 ```
 
 ### get_posts
+
 #### Input
 ```json
 {
@@ -219,11 +220,19 @@ Use the same `path` value as the post made. This is required to ensure recipient
 #### Output
 ```json
 {
-    mine: Vec<Post>,
-    others: Vec<Post>,
+    mine: Vec<PlainPost>,
+    others: Vec<PlainPost>,
 }
 ```
-
+```json
+PlainPost{
+    id: String,
+    genesis: u64,
+    expiry: u64,
+    owner: String,
+    post: Post,
+}
+```
 ```json
 Post{
     to: String,
@@ -245,6 +254,9 @@ Preferences{
 }
 ```
 ### delete_identity
+
+Removes an identity and all associated badges and posts.
+
 ```json
 {
     social_root: String,
