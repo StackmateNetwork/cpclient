@@ -1,15 +1,9 @@
 use crate::key::encryption::{self,key_hash256};
-use crate::key::child;
 use crate::key::ec::{XOnlyPair,xonly_to_public_key};
 use bdk::bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::secp256k1::{XOnlyPublicKey};
-use bdk::bitcoin::util::bip32::ExtendedPrivKey;
 use serde::{Deserialize, Serialize};
-use crate::lib::e::{S5Error,ErrorKind};
-use crate::network::identity::model::{MemberIdentity, UserIdentity};
-use crate::lib::config::{DEFAULT_TEST_NETWORK, DEFAULT_MAIN_NETWORK, DEFAULT_MAINNET_NODE, DEFAULT_TESTNET_NODE};
-use bdk::bitcoin::network::constants::Network;
-use crate::contract::model::{InheritanceContractPublicData};
+use crate::util::e::{S5Error,ErrorKind};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LocalPostModel {
@@ -82,18 +76,12 @@ impl Recipient {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Payload {
-    Ping,
-    ChecksumPong(String), 
     Message(String),
-    StartInheritance(InheritanceContractPublicData),
 }
 impl Payload {
     pub fn to_string(&self)->String{
         match self{
-            Payload::Ping=>"Ping".to_string(),
-            Payload::ChecksumPong(checksum)=>checksum.to_string(),
             Payload::Message(text)=>text.to_string(),
-            Payload::StartInheritance(data)=>data.stringify().unwrap(),
         }
     }
 }

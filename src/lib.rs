@@ -5,6 +5,10 @@ static A: System = System;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
+mod key;
+mod network;
+mod util;
+
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
 /// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use bitcoin::secp256k1::{XOnlyPublicKey};
 use bdk::bitcoin::util::bip32::ExtendedPrivKey;
 use crate::key::encryption::{cc20p1305_encrypt,cc20p1305_decrypt};
-use crate::lib::e::{ErrorKind, S5Error};
+use crate::util::e::{ErrorKind, S5Error};
 use crate::key::ec::{XOnlyPair};
 use crate::key::child;
 use crate::key::encryption;

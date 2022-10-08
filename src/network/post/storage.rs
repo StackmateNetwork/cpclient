@@ -1,5 +1,5 @@
-use crate::lib::sleddb;
-use crate::lib::e::{ErrorKind, S5Error};
+use crate::util::sleddb;
+use crate::util::e::{ErrorKind, S5Error};
 use crate::network::model::{LocalPostModel};
 
 pub fn create_posts(host: String,post_models: Vec<LocalPostModel>, username: String)->Result<bool, S5Error>{

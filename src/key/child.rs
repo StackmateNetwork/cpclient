@@ -1,4 +1,4 @@
-use crate::lib::e::{ErrorKind, S5Error};
+use crate::util::e::{ErrorKind, S5Error};
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey};

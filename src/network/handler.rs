@@ -1,4 +1,4 @@
-use crate::lib::e::{S5Error,ErrorKind};
+use crate::util::e::{S5Error,ErrorKind};
 use crate::key::ec::{XOnlyPair};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;

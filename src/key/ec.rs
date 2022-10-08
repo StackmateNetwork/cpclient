@@ -6,7 +6,7 @@ use bdk::bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{ecdh::SharedSecret, KeyPair, Message, PublicKey, SecretKey, XOnlyPublicKey};
 use bdk::bitcoin::util::bip32::ExtendedPrivKey;
 
-use crate::lib::e::{ErrorKind, S5Error};
+use crate::util::e::{ErrorKind, S5Error};
 
 /// FFI Output
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -4,7 +4,7 @@ use chacha20poly1305::aead::{Aead, NewAead};
 use bdk::bitcoin::secp256k1::rand::{thread_rng,Rng};
 use sha2::{Sha256, Digest};
 
-use crate::lib::e::{ErrorKind, S5Error};
+use crate::util::e::{ErrorKind, S5Error};
 
 pub fn key_hash256(key: &str)->String{
     let mut hasher = Sha256::new();

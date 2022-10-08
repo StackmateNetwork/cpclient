@@ -5,7 +5,7 @@ use bdk::bitcoin::secp256k1::rand::rngs::OsRng;
 use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::bitcoin::util::bip32::{ExtendedPrivKey};
 use crate::key::encryption::{cc20p1305_encrypt,cc20p1305_decrypt};
-use crate::lib::e::{ErrorKind, S5Error};
+use crate::util::e::{ErrorKind, S5Error};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MasterKeySeed {
