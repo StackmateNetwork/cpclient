@@ -1,0 +1,8 @@
+target
+Cargo.lock
+builds.zip
+builds
+releases
+.vscode
+*.tar.gz
+*.tar
