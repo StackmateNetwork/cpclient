@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use bitcoin::secp256k1::{XOnlyPublicKey};
-use crate::key::ec::{XOnlyPair,xonly_to_public_key, schnorr_verify};
+use crate::key::ec::{XOnlyPair, schnorr_verify};
 use bdk::bitcoin::secp256k1::schnorr::Signature;
 use crate::network::handler::{AnnouncementType};
 use crate::key::encryption::{nonce};

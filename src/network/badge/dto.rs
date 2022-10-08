@@ -1,10 +1,9 @@
-use ureq::{Agent,Proxy, AgentBuilder};
+use ureq::{Proxy, AgentBuilder};
 use serde::{Deserialize, Serialize};
 
 use crate::key::encryption::{nonce};
 use crate::key::ec::{XOnlyPair};
-use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,AnnouncementType,OwnedBy,ServerStatusResponse, sign_request};
-use crate::network::identity::model::{MemberIdentity};
+use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,OwnedBy,ServerStatusResponse, sign_request};
 use crate::network::badge::model::{Badge};
 use crate::util::e::{ErrorKind, S5Error};
 use bitcoin::secp256k1::{XOnlyPublicKey};
@@ -192,6 +191,7 @@ mod tests {
     use crate::key::seed;
     use crate::key::child;
     use bdk::bitcoin::network::constants::Network;
+    use crate::network::handler::{AnnouncementType};
 
     #[test]
     #[ignore]

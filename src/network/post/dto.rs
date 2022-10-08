@@ -1,7 +1,7 @@
 use crate::util::e::{ErrorKind, S5Error};
 use serde::{Deserialize, Serialize};
 
-use ureq::{Agent,Proxy, AgentBuilder};
+use ureq::{Proxy, AgentBuilder};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,ServerStatusResponse, OwnedBy, sign_request};
 use crate::network::post::model::{LocalPostModel, Post, DecryptionKey};
 use bdk::bitcoin::util::bip32::ExtendedPrivKey;
@@ -374,8 +374,22 @@ pub fn single_post(host: &str, socks5: Option<u32>, key_pair: XOnlyPair,post_id:
     let full_url = host.to_string() + &APIEndPoint::Post(Some(post_id.to_string())).to_string();
     let nonce = nonce();
     let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Post(Some(post_id.to_string())), &nonce).unwrap();
-
-    match ureq::get(&full_url)
+    let proxy = if socks5.is_some(){ 
+        Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
+    }
+    else{
+        None
+    };
+    let agent = if proxy.is_some(){
+        AgentBuilder::new()
+        .proxy(proxy.unwrap())
+        .build()
+    }
+    else{
+        AgentBuilder::new()
+        .build()
+    };
+    match agent.get(&full_url)
         .set(&HttpHeader::Signature.to_string(), &signature)
         .set(&HttpHeader::Pubkey.to_string(), &key_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)

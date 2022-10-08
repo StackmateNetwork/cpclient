@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use ureq::{Agent,Proxy, AgentBuilder};
-use std::time::Duration;
+use ureq::{Proxy, AgentBuilder};
 
 use crate::key::encryption::{nonce};
 use crate::key::ec::{XOnlyPair};

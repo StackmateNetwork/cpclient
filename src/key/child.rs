@@ -1,10 +1,7 @@
 use crate::util::e::{ErrorKind, S5Error};
-use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey};
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::str::FromStr;
 
 /// FFI Output
@@ -67,7 +64,6 @@ mod tests {
     fn test_derivation() {
         let fingerprint = "eb79e0ff";
         let master_xprv = ExtendedPrivKey::from_str("tprv8ZgxMBicQKsPduTkddZgfGyk4ZJjtEEZQjofpyJg74LizJ469DzoF8nmU1YcvBFskXVKdoYmLoRuZZR1wuTeuAf8rNYR2zb1RvFns2Vs8hY").unwrap();
-        let account = 0; // 0
         let hardened_path = "m/84h/1h/0h";
         let account_xprv = ExtendedPrivKey::from_str("tprv8gqqcZU4CTQ9bFmmtVCfzeSU9ch3SfgpmHUPzFP5ktqYpnjAKL9wQK5vx89n7tgkz6Am42rFZLS9Qs4DmFvZmgukRE2b5CTwiCWrJsFUoxz").unwrap();
         let account_xpub = ExtendedPubKey::from_str("tpubDDXskyWJLq5pUioZn8sGQ46aieCybzsjLb5BGmRPBAdwfGyvwiyXaoho8EYJcgJa5QGHGYpDjLQ8gWzczWbxadeRkCuExW32Boh696yuQ9m").unwrap();
