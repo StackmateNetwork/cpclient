@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use bitcoin::secp256k1::{XOnlyPublicKey};
 use crate::key::ec::{XOnlyPair,xonly_to_public_key, schnorr_verify};
 use bdk::bitcoin::secp256k1::schnorr::Signature;
-use crate::network::handler::{AnnouncementType};
+use crate::network::handler::{AnnouncementKind};
 use crate::key::encryption::{nonce};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Badge{
     pub genesis: Option<u64>,
-    pub kind: AnnouncementType,
+    pub kind: AnnouncementKind,
     pub by: XOnlyPublicKey,
     pub to : XOnlyPublicKey,
     pub nonce: String,
@@ -18,7 +18,7 @@ pub struct Badge{
 
 impl Badge {
     pub fn new(
-        kind: AnnouncementType,
+        kind: AnnouncementKind,
         creator: XOnlyPair,
         to: XOnlyPublicKey,
     )->Self{

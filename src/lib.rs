@@ -21,19 +21,6 @@ pub unsafe extern "C" fn example(
     output
 }
 
-// create social root - user must keep track of social_xprv
-// get server identity
-// register
-// get user invite
-// get members
-
-// get badges
-// give badge
-
-// create post - user must keep track of derivation path via a preference post
-// get posts
-
-
 #[cfg(test)]
 mod tests {
     #[test]
