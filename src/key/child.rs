@@ -33,70 +33,7 @@ impl ChildKeys {
         }
     }
 }
-#[derive(Clone)]
-pub enum DerivationPurpose {
-    Legacy,
-    Compatible,
-    Native,
-    Taproot,
-    Social,
-}
-impl Display for DerivationPurpose {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        match self {
-            DerivationPurpose::Legacy => write!(f, "44"),
-            DerivationPurpose::Compatible => write!(f, "49"),
-            DerivationPurpose::Native => write!(f, "84"),
-            DerivationPurpose::Taproot => write!(f, "86"),
-            DerivationPurpose::Social => write!(f, "392"),
-        }
-    }
-}
 
-pub fn to_hardened_account(
-    root: ExtendedPrivKey,
-    purpose: DerivationPurpose,
-    account: u64,
-) -> Result<ChildKeys, S5Error> {
-    let secp = Secp256k1::new();
-    let fingerprint = root.fingerprint(&secp);
-    let network = root.network;
-
-    let coin = match network {
-        Network::Bitcoin => "0",
-        Network::Testnet => "1",
-        _ => "1",
-    };
-
-    let hardened_path = format!(
-        "m/{}h/{}h/{}h",
-        purpose,
-        coin,
-        account
-    );
-    let path = match DerivationPath::from_str(&hardened_path) {
-        Ok(hdpath) => hdpath,
-        Err(_) => {
-            return Err(S5Error::new(
-                ErrorKind::Key,
-                "Invalid purpose or account in derivation path.",
-            ))
-        }
-    };
-    let child_xprv = match root.derive_priv(&secp, &path) {
-        Ok(xprv) => xprv,
-        Err(e) => return Err(S5Error::new(ErrorKind::Key, &e.to_string())),
-    };
-
-    let child_xpub = ExtendedPubKey::from_priv(&secp, &child_xprv);
-
-    Ok(ChildKeys {
-        fingerprint: fingerprint.to_string(),
-        hardened_path,
-        xprv: child_xprv,
-        xpub: child_xpub,
-    })
-}
 pub fn to_path_str(root: ExtendedPrivKey, derivation_path: &str) -> Result<ChildKeys, S5Error> {
     let secp = Secp256k1::new();
     let fingerprint = root.fingerprint(&secp);
@@ -130,7 +67,6 @@ mod tests {
     fn test_derivation() {
         let fingerprint = "eb79e0ff";
         let master_xprv = ExtendedPrivKey::from_str("tprv8ZgxMBicQKsPduTkddZgfGyk4ZJjtEEZQjofpyJg74LizJ469DzoF8nmU1YcvBFskXVKdoYmLoRuZZR1wuTeuAf8rNYR2zb1RvFns2Vs8hY").unwrap();
-        let purpose = DerivationPurpose::Native; // 84
         let account = 0; // 0
         let hardened_path = "m/84h/1h/0h";
         let account_xprv = ExtendedPrivKey::from_str("tprv8gqqcZU4CTQ9bFmmtVCfzeSU9ch3SfgpmHUPzFP5ktqYpnjAKL9wQK5vx89n7tgkz6Am42rFZLS9Qs4DmFvZmgukRE2b5CTwiCWrJsFUoxz").unwrap();
@@ -141,7 +77,7 @@ mod tests {
             xprv: account_xprv,
             xpub: account_xpub,
         };
-        let derived = to_hardened_account(master_xprv, purpose, account).unwrap();
+        let derived = to_path_str(master_xprv, hardened_path).unwrap();
         assert_eq!(derived.xprv, child_keys.xprv);
     }
 
