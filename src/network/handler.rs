@@ -2,6 +2,8 @@ use crate::util::e::{S5Error,ErrorKind};
 use crate::key::ec::{XOnlyPair};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use std::ffi::CString;
+use std::os::raw::c_char;
 
 pub enum HttpMethod{
     Get,
@@ -156,6 +158,11 @@ pub struct ServerStatusResponse{
     pub status: bool
 }
 impl ServerStatusResponse{
+    pub fn new(status: bool)->Self{
+        ServerStatusResponse{
+            status
+        }
+    }
     pub fn structify(stringified: &str) -> Result<ServerStatusResponse, S5Error> {
         match serde_json::from_str(stringified) {
             Ok(result) => Ok(result),
@@ -163,6 +170,18 @@ impl ServerStatusResponse{
                 Err(S5Error::new(ErrorKind::Internal, "Error stringifying ServerStatusResponse"))
             }
         }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
     }
 }
 

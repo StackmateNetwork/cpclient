@@ -1,7 +1,7 @@
 extern crate bip85;
 use crate::util::e::{ErrorKind,S5Error};
 use bip85::bitcoin::secp256k1::Secp256k1;
-use bip85::bitcoin::util::bip32::{ExtendedPrivKey, ExtendedPubKey};
+use bip85::bitcoin::util::bip32::{ExtendedPrivKey};
 use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use std::ffi::CString;
@@ -19,18 +19,25 @@ impl SocialRoot {
             social_root
         }
     }
-  pub fn c_stringify(&self) -> *mut c_char {
-    let stringified = match serde_json::to_string(self) {
-      Ok(result) => result,
-      Err(_) => {
-        return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
-          .unwrap()
-          .into_raw()
-      }
-    };
-
-    CString::new(stringified).unwrap().into_raw()
-  }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+        Ok(result) => result,
+        Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+            .unwrap()
+            .into_raw()
+            }
+        };
+        CString::new(stringified).unwrap().into_raw()
+    }
+    pub fn structify(stringified: &str) -> Result<SocialRoot, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying SocialRoot"))
+            }
+        }
+    }
 }
 
 pub fn social_root(master_root: String, index: u32) -> Result<String,S5Error>{

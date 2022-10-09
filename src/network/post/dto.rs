@@ -42,8 +42,8 @@ impl ServerPostIdResponse{
     }
 }
 
-pub fn create(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, cpost_req: ServerPostRequest)->Result<String, S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::Post(None).to_string();
+pub fn create(host: String, socks5: Option<u32>, key_pair: XOnlyPair, cpost_req: ServerPostRequest)->Result<String, S5Error>{
+    let full_url = host + &APIEndPoint::Post(None).to_string();
     let nonce = nonce();
     let signature = sign_request(key_pair.clone(), HttpMethod::Put, APIEndPoint::Post(None), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
@@ -83,10 +83,10 @@ pub fn create(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, cpost_req: S
 
 }
 
-pub fn remove(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, id: &str)->Result<(), S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::Post(Some(id.to_string())).to_string();
+pub fn remove(host: String, socks5: Option<u32>, key_pair: XOnlyPair, id: String)->Result<(), S5Error>{
+    let full_url = host + &APIEndPoint::Post(Some(id.clone())).to_string();
     let nonce = nonce();
-    let signature = sign_request(key_pair.clone(), HttpMethod::Delete, APIEndPoint::Post(Some(id.to_string())), &nonce).unwrap();
+    let signature = sign_request(key_pair.clone(), HttpMethod::Delete, APIEndPoint::Post(Some(id)), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -143,11 +143,11 @@ impl ServerPostKeysRequest{
     }
 }
 
-pub fn keys(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, post_id: &str, decryption_keys: Vec<DecryptionKey>)->Result<(), S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::PostKeys.to_string();
+pub fn keys(host: String, socks5: Option<u32>, key_pair: XOnlyPair, post_id: String, decryption_keys: Vec<DecryptionKey>)->Result<(), S5Error>{
+    let full_url = host + &APIEndPoint::PostKeys.to_string();
     let nonce = nonce();
     let signature = sign_request(key_pair.clone(), HttpMethod::Put, APIEndPoint::PostKeys, &nonce).unwrap();
-    let body = ServerPostKeysRequest::new(post_id, decryption_keys);
+    let body = ServerPostKeysRequest::new(&post_id, decryption_keys);
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -257,7 +257,7 @@ impl ServerPostModelResponse{
     }
 }
 
-fn my_posts(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, filter: Option<u64>)->Result<Vec<ServerPostModel>, S5Error>{
+fn my_posts(host: String, socks5: Option<u32>, key_pair: XOnlyPair, filter: Option<u64>)->Result<Vec<ServerPostModel>, S5Error>{
     let filter = if filter.is_some(){"?genesis_filter=".to_string() + &filter.unwrap().to_string()}else{"".to_string()};
     let full_url = host.to_string() + &APIEndPoint::Posts(OwnedBy::Me).to_string() + &filter;
     let nonce = nonce();
@@ -297,7 +297,7 @@ fn my_posts(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, filter: Option
         }
 }
 
-fn others_posts(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, filter: Option<u64>)->Result<Vec<ServerPostModel>, S5Error>{
+fn others_posts(host: String, socks5: Option<u32>, key_pair: XOnlyPair, filter: Option<u64>)->Result<Vec<ServerPostModel>, S5Error>{
     let filter = if filter.is_some(){"?genesis_filter=".to_string() + &filter.unwrap().to_string()}else{"".to_string()};
     let full_url = host.to_string() + &APIEndPoint::Posts(OwnedBy::Others).to_string() + &filter;
 
@@ -348,9 +348,9 @@ fn process_cypherposts(social_root: ExtendedPrivKey,posts: Vec<ServerPostModel>)
     Ok(plains)
 }
 
-pub fn get_all_posts(host: &str, socks5: Option<u32>,  social_root: ExtendedPrivKey, filter: Option<u64>)->Result<Vec<LocalPostModel>,S5Error>{
+pub fn get_all_posts(host: String, socks5: Option<u32>,  social_root: ExtendedPrivKey, filter: Option<u64>)->Result<Vec<LocalPostModel>,S5Error>{
     let xonly_pair = XOnlyPair::from_xprv(social_root.clone());
-    let mut all_posts = my_posts(host,socks5, xonly_pair.clone(), filter).unwrap();
+    let mut all_posts = my_posts(host.clone(),socks5, xonly_pair.clone(), filter).unwrap();
     all_posts.append(&mut others_posts(host,socks5, xonly_pair, filter).unwrap());
     process_cypherposts(social_root, all_posts)
 }
@@ -370,8 +370,8 @@ impl ServerPostSingleResponse{
     }
 }
 
-pub fn single_post(host: &str, socks5: Option<u32>, key_pair: XOnlyPair,post_id: &str)->Result<ServerPostModel, S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::Post(Some(post_id.to_string())).to_string();
+pub fn single_post(host: String, socks5: Option<u32>, key_pair: XOnlyPair,post_id: String)->Result<ServerPostModel, S5Error>{
+    let full_url = host + &APIEndPoint::Post(Some(post_id.to_string())).to_string();
     let nonce = nonce();
     let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Post(Some(post_id.to_string())), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
@@ -480,14 +480,14 @@ mod tests {
     #[test]
     #[ignore]
     fn test_post_dto(){
-        let url = "http://localhost:3021";
+        let url = "http://localhost:3021".to_string();
         // ADMIN INVITE
-        let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6";
-        let client_invite_code1 = admin_invite(url, None,admin_invite_code,InvitePermission::Standard).unwrap();
-        assert_eq!(client_invite_code1.len() , 32);
+        let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6".to_string();
+        let client_invite_code1 = admin_invite(url.clone(), None,admin_invite_code.clone(),InvitePermission::Standard).unwrap();
+        assert_eq!(client_invite_code1.invite_code.len() , 32);
         
-        let client_invite_code2 = admin_invite(url, None,admin_invite_code,InvitePermission::Privilege(1)).unwrap();
-        assert_eq!(client_invite_code2.len() , 32);
+        let client_invite_code2 = admin_invite(url.clone(), None,admin_invite_code.clone(),InvitePermission::Privilege(1)).unwrap();
+        assert_eq!(client_invite_code2.invite_code.len() , 32);
 
         // REGISTER USERS
         let nonce = nonce();
@@ -497,26 +497,26 @@ mod tests {
         let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
         let mut my_identity = UserIdentity::new(social_child1.to_string(),0).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
-        assert!(register(url, None, xonly_pair1.clone(), &client_invite_code1, &user1).is_ok());
+        assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
         let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];
-        assert!(register(url, None, xonly_pair2.clone(), &client_invite_code2, &user2).is_ok());
+        assert!(register(url.clone(), None, xonly_pair2.clone(), client_invite_code2.invite_code.clone(), user2).is_ok());
 
-        let client_invite_code3 = user_invite(url, None, xonly_pair2.clone(),&client_invite_code2).unwrap();
-        assert_eq!(client_invite_code3.len() , 32);
+        let client_invite_code3 = user_invite(url.clone(), None, xonly_pair2.clone(),client_invite_code2.invite_code.clone()).unwrap();
+        assert_eq!(client_invite_code3.invite_code.len() , 32);
 
         let seed3 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child3 = ExtendedPrivKey::from_str(&child::social_root(seed3.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3);
         let user3 = "escrow".to_string() + &nonce[0..3];
-        assert!(register(url, None, xonly_pair3.clone(), &client_invite_code3, &user3).is_ok());
+        assert!(register(url.clone(), None, xonly_pair3.clone(), client_invite_code3.invite_code, user3).is_ok());
 
         // GET ALL USERS
-        let identities = get_all(url, None,xonly_pair3.clone()).unwrap();
-        let user_count = identities.len();
+        let members = get_all(url.clone(), None,xonly_pair3.clone()).unwrap();
+        let user_count = members.identities.len();
         assert!(user_count>0);
 
         // Create a struct to share
@@ -527,21 +527,21 @@ mod tests {
         println!("{encryption_key}");
         let cypher_json = post.to_cypher(encryption_key.clone());
         let cpost_req = ServerPostRequest::new(0, index,&cypher_json);
-        let post_id = create(url, None,xonly_pair1.clone(), cpost_req).unwrap();
+        let post_id = create(url.clone(), None,xonly_pair1.clone(), cpost_req).unwrap();
         assert_eq!(post_id.len(), 24);
         let decrypkeys = DecryptionKey::make_for_many(xonly_pair1.clone(),[xonly_pair2.clone().pubkey,xonly_pair3.clone().pubkey].to_vec(), encryption_key).unwrap();
-        assert!(keys(url, None, xonly_pair1.clone(), &post_id,decrypkeys).is_ok());
+        assert!(keys(url.clone(), None, xonly_pair1.clone(), post_id.clone(),decrypkeys).is_ok());
         // Get posts & keys as user2
-        let posts = get_all_posts(url, None, social_child2.clone(), None).unwrap();
+        let posts = get_all_posts(url.clone(), None, social_child2.clone(), None).unwrap();
         assert_eq!(posts.len(),1);
         // Get posts & keys as user3
-        let posts = get_all_posts(url, None, social_child3.clone(), None).unwrap();
+        let posts = get_all_posts(url.clone(), None, social_child3.clone(), None).unwrap();
         assert_eq!(posts.len(),1);
         // Get posts as self
-        let posts = get_all_posts(url, None, my_identity.social_root, None).unwrap();
+        let posts = get_all_posts(url.clone(), None, my_identity.social_root, None).unwrap();
         assert_eq!(posts.len(),1);
         // Delete post
-        assert!(remove(url, None,xonly_pair1.clone(), &post_id).is_ok());
+        assert!(remove(url.clone(), None,xonly_pair1.clone(), post_id.clone()).is_ok());
         // KEEP BUILDING!
     }
 }

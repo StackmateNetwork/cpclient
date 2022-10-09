@@ -7,12 +7,100 @@ use crate::key::ec::{XOnlyPair};
 use crate::key::child;
 use crate::key::encryption;
 use std::str::FromStr;
+use std::ffi::CString;
+use std::os::raw::c_char;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ServerIdentity{
+    pub kind: String,
+    pub name: String,
+}
+
+impl ServerIdentity{
+    pub fn structify(stringified: &str) -> Result<ServerIdentity, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying ServerIdentity"))
+            }
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+    }
+
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Invitation{
+    pub invite_code: String
+}
+impl Invitation{
+    pub fn structify(stringified: &str) -> Result<Invitation, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying Invitation"))
+            }
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MemberIdentity{
     pub username: String,
     pub pubkey: XOnlyPublicKey,
 }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Members{
+    pub identities: Vec<MemberIdentity>
+}
+
+impl Members{
+    pub fn structify(stringified: &str) -> Result<Members, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying Members"))
+            }
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserIdentity{

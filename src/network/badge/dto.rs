@@ -26,8 +26,8 @@ impl AnnouncementRequest{
     }
 }
 
-pub fn announce(host: &str, socks5: Option<u32>, keypair: XOnlyPair, badge: Badge)->Result<(), S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::Announce(badge.clone().kind).to_string();
+pub fn announce(host: String, socks5: Option<u32>, keypair: XOnlyPair, badge: Badge)->Result<(), S5Error>{
+    let full_url = host + &APIEndPoint::Announce(badge.clone().kind).to_string();
     let nonce = nonce();
     let signature = sign_request(keypair.clone(), HttpMethod::Post, APIEndPoint::Announce(badge.kind), &nonce).unwrap();
     let body = AnnouncementRequest::new(badge.to, badge.nonce, badge.signature);
@@ -88,8 +88,8 @@ impl AllBadgesResponse{
     }
 }
 
-pub fn get_all(host: &str, socks5: Option<u32>, keypair: XOnlyPair)->Result<Vec<Badge>, S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::Announcements(OwnedBy::Others).to_string();
+pub fn get_all(host: String, socks5: Option<u32>, keypair: XOnlyPair)->Result<Vec<Badge>, S5Error>{
+    let full_url = host + &APIEndPoint::Announcements(OwnedBy::Others).to_string();
     let nonce = nonce();
     let signature = sign_request(keypair.clone(), HttpMethod::Get, APIEndPoint::Announcements(OwnedBy::Others), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
@@ -138,8 +138,8 @@ impl BadgeRevokeRequest{
         }
     }
 }
-pub fn revoke(host: &str, socks5: Option<u32>, keypair: XOnlyPair, badge: Badge)->Result<(), S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::Revoke(badge.clone().kind).to_string();
+pub fn revoke(host: String, socks5: Option<u32>, keypair: XOnlyPair, badge: Badge)->Result<(), S5Error>{
+    let full_url = host + &APIEndPoint::Revoke(badge.clone().kind).to_string();
     let nonce = nonce();
     let signature = sign_request(keypair.clone(), HttpMethod::Post, APIEndPoint::Revoke(badge.clone().kind), &nonce).unwrap();
     let body = BadgeRevokeRequest::new(badge.to);
@@ -199,14 +199,14 @@ mod tests {
     #[test]
     #[ignore]
     fn test_badges_dto(){
-        let url = "http://localhost:3021";
+        let url = "http://localhost:3021".to_string();
         // ADMIN INVITE
-        let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6";
-        let client_invite_code1 = admin_invite(url, None,admin_invite_code,InvitePermission::Standard).unwrap();
-        assert_eq!(client_invite_code1.len() , 32);
+        let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6".to_string();
+        let client_invite_code1 = admin_invite(url.clone(), None,admin_invite_code.clone(),InvitePermission::Standard).unwrap();
+        assert_eq!(client_invite_code1.invite_code.len() , 32);
         
-        let client_invite_code2 = admin_invite(url, None,admin_invite_code,InvitePermission::Standard).unwrap();
-        assert_eq!(client_invite_code1.len() , 32);
+        let client_invite_code2 = admin_invite(url.clone(), None,admin_invite_code.clone(),InvitePermission::Standard).unwrap();
+        assert_eq!(client_invite_code1.invite_code.len() , 32);
 
         // REGISTER USERS
         let nonce = nonce();
@@ -216,27 +216,27 @@ mod tests {
         let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1);
         let user1 = "builder".to_string() + &nonce[0..3];
 
-        assert!(register(url, None, xonly_pair1.clone(), &client_invite_code1, &user1).is_ok());
+        assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
         let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];
         
-        assert!(register(url, None, xonly_pair2.clone(), &client_invite_code2, &user2).is_ok());
+        assert!(register(url.clone(), None, xonly_pair2.clone(), client_invite_code2.invite_code, user2).is_ok());
 
         let badge1to2 = Badge::new(AnnouncementType::Trust,xonly_pair1.clone(),xonly_pair2.pubkey);
         assert!(badge1to2.verify());
 
-        assert!(announce(url, None, xonly_pair1.clone(), badge1to2.clone()).is_ok());
+        assert!(announce(url.clone(), None, xonly_pair1.clone(), badge1to2.clone()).is_ok());
 
-        let badges: Vec<Badge> = get_all(url, None, xonly_pair2.clone()).unwrap();
+        let badges: Vec<Badge> = get_all(url.clone(), None, xonly_pair2.clone()).unwrap();
         let count = badges.len();
         assert!(count > 0);
         
-        revoke(url, None, xonly_pair1.clone(), badge1to2.clone()).unwrap();
+        revoke(url.clone(), None, xonly_pair1.clone(), badge1to2.clone()).unwrap();
         
-        let badges: Vec<Badge> = get_all(url, None, xonly_pair2).unwrap();
+        let badges: Vec<Badge> = get_all(url.clone(), None, xonly_pair2).unwrap();
         let count_update = badges.len();
         assert!(count - count_update == 1);
 

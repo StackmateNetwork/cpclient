@@ -52,7 +52,30 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 #### Output
 ```json
 {
+    kind: String, 
     name: String,
+}
+```
+
+### get_members
+#### Input
+```json
+{
+    hostname: String,
+    socks5: uint,
+    social_root: String,
+    genesis_filter: uint,
+}
+```
+#### Output
+```json
+{
+    members:Vec<Member>,
+}
+```
+```json
+Member{
+    username: String,
     pubkey: String,
 }
 ```
@@ -95,28 +118,6 @@ The resulting `invite_code` will be a standard kind, which cannot be used to inv
 }
 ```
 
-### get_members
-#### Input
-```json
-{
-    hostname: String,
-    socks5: uint,
-    social_root: String,
-    genesis_filter: uint,
-}
-```
-#### Output
-```json
-{
-    members:Vec<Member>,
-}
-```
-```json
-Member{
-    username: String,
-    pubkey: String,
-}
-```
 
 ### get_badges
 #### Input
