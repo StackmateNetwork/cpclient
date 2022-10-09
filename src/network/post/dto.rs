@@ -409,6 +409,60 @@ pub fn single_post(host: &str, socks5: Option<u32>, key_pair: XOnlyPair,post_id:
         }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ServerLastDerivationResponse{
+    pub last_index: u32
+}
+impl ServerLastDerivationResponse{
+    pub fn structify(stringified: &str) -> Result<ServerLastDerivationResponse, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying ServerLastDerivationResponse"))
+            }
+        }
+    }
+}
+
+pub fn last_derivation(host: &str, socks5: Option<u32>, key_pair: XOnlyPair)->Result<u32, S5Error>{
+    let full_url = host.to_string() + &APIEndPoint::LastDerivation.to_string();
+    let nonce = nonce();
+    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::LastDerivation, &nonce).unwrap();
+    let proxy = if socks5.is_some(){ 
+        Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
+    }
+    else{
+        None
+    };
+    let agent = if proxy.is_some(){
+        AgentBuilder::new()
+        .proxy(proxy.unwrap())
+        .build()
+    }
+    else{
+        AgentBuilder::new()
+        .build()
+    };
+    match agent.get(&full_url)
+        .set(&HttpHeader::Signature.to_string(), &signature)
+        .set(&HttpHeader::Pubkey.to_string(), &key_pair.pubkey.to_string())
+        .set(&HttpHeader::Nonce.to_string(), &nonce)
+        .call(){
+            Ok(response)=> match ServerLastDerivationResponse::structify(&response.into_string().unwrap())
+            {
+                Ok(result)=>{
+                    Ok(result.last_index)
+                },
+                Err(e) =>{
+                    Err(e)
+                }
+            },
+            Err(e)=>{
+                Err(S5Error::from_ureq(e))
+            }
+        }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -489,6 +543,5 @@ mod tests {
         // Delete post
         assert!(remove(url, None,xonly_pair1.clone(), &post_id).is_ok());
         // KEEP BUILDING!
-
     }
 }

@@ -3,9 +3,34 @@ use crate::util::e::{ErrorKind,S5Error};
 use bip85::bitcoin::secp256k1::Secp256k1;
 use bip85::bitcoin::util::bip32::{ExtendedPrivKey, ExtendedPubKey};
 use std::str::FromStr;
+use serde::{Deserialize, Serialize};
+use std::ffi::CString;
+use std::os::raw::c_char;
 
-pub fn check_xpub(xpub: &str) -> bool {
-    ExtendedPubKey::from_str(xpub).is_ok()
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SocialRoot {
+  pub social_root: String,
+}
+
+impl SocialRoot {
+    pub fn new(social_root:String)->Self{
+        SocialRoot{
+            social_root
+        }
+    }
+  pub fn c_stringify(&self) -> *mut c_char {
+    let stringified = match serde_json::to_string(self) {
+      Ok(result) => result,
+      Err(_) => {
+        return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+          .unwrap()
+          .into_raw()
+      }
+    };
+
+    CString::new(stringified).unwrap().into_raw()
+  }
 }
 
 pub fn social_root(master_root: String, index: u32) -> Result<String,S5Error>{

@@ -1,4 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::ffi::CString;
+use std::os::raw::c_char;
+
 use ureq::{Proxy, AgentBuilder};
 
 use crate::key::encryption::{nonce};
@@ -6,6 +9,75 @@ use crate::key::ec::{XOnlyPair};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint, InvitePermission, ServerStatusResponse, sign_request};
 use crate::network::identity::model::{MemberIdentity};
 use crate::util::e::{ErrorKind, S5Error};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ServerIdentityResponse{
+    pub name: String,
+    pub pubkey: String,
+}
+
+impl ServerIdentityResponse{
+    pub fn structify(stringified: &str) -> Result<ServerIdentityResponse, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying ServerIdentityResponse"))
+            }
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+      }
+
+}
+
+pub fn get_server_id(host: &str,socks5: Option<u32>, xonly_pair: XOnlyPair)->Result<ServerIdentityResponse, S5Error>{
+    let full_url = host.to_string() + &APIEndPoint::ServerIdentity.to_string();
+    let nonce = nonce();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Get, APIEndPoint::ServerIdentity, &nonce).unwrap();
+    let proxy = if socks5.is_some(){ 
+        Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
+    }
+    else{
+        None
+    };
+    let agent = if proxy.is_some(){
+        AgentBuilder::new()
+        .proxy(proxy.unwrap())
+        .build()
+    }
+    else{
+        AgentBuilder::new()
+        .build()
+    };
+    match agent.get(&full_url)
+        .set(&HttpHeader::Signature.to_string(), &signature)
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
+        .set(&HttpHeader::Nonce.to_string(), &nonce)
+        .call(){
+            Ok(response)=>
+                match ServerIdentityResponse::structify(&response.into_string().unwrap())
+                {
+                    Ok(result)=>Ok(result),
+                    Err(e) =>{
+                        Err(e)
+                    }
+                },
+            Err(e)=>{
+                Err(S5Error::from_ureq(e))
+            }
+        }
+}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AdminInviteResponse{
@@ -56,10 +128,10 @@ pub fn admin_invite(host: &str,socks5: Option<u32>, admin_secret: &str, permissi
         }
 }
 
-pub fn user_invite(host: &str,socks5: Option<u32>,keypair: XOnlyPair,  priv_invite_code: &str)->Result<String, S5Error>{
+pub fn user_invite(host: &str,socks5: Option<u32>,xonly_pair: XOnlyPair,  priv_invite_code: &str)->Result<String, S5Error>{
     let full_url = host.to_string() + &APIEndPoint::UserInvite.to_string();
     let nonce = nonce();
-    let signature = sign_request(keypair.clone(), HttpMethod::Get, APIEndPoint::UserInvite, &nonce).unwrap();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Get, APIEndPoint::UserInvite, &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -78,7 +150,7 @@ pub fn user_invite(host: &str,socks5: Option<u32>,keypair: XOnlyPair,  priv_invi
     match agent.get(&full_url)
         .set(&HttpHeader::UserInvite.to_string(), priv_invite_code)
         .set(&HttpHeader::Signature.to_string(), &signature)
-        .set(&HttpHeader::Pubkey.to_string(), &keypair.pubkey.to_string())
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .call()
         {
@@ -108,10 +180,10 @@ impl IdentityRegisterRequest{
     }
 }
 
-pub fn register(host: &str, socks5: Option<u32>, keypair: XOnlyPair, invite_code: &str, username: &str)->Result<(), S5Error>{
+pub fn register(host: &str, socks5: Option<u32>, xonly_pair: XOnlyPair, invite_code: &str, username: &str)->Result<(), S5Error>{
     let full_url = host.to_string() + &APIEndPoint::Identity.to_string();
     let nonce = nonce();
-    let signature = sign_request(keypair.clone(), HttpMethod::Post, APIEndPoint::Identity, &nonce).unwrap();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Post, APIEndPoint::Identity, &nonce).unwrap();
     let body = IdentityRegisterRequest::new(&username.to_lowercase());
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
@@ -131,7 +203,7 @@ pub fn register(host: &str, socks5: Option<u32>, keypair: XOnlyPair, invite_code
     match agent.post(&full_url)
         .set(&HttpHeader::InviteCode.to_string(), invite_code)
         .set(&HttpHeader::Signature.to_string(), &signature)
-        .set(&HttpHeader::Pubkey.to_string(), &keypair.pubkey.to_string())
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .send_json(body){
             Ok(response)=>  
@@ -171,10 +243,10 @@ impl AllIdentitiesResponse{
     }
 }
 
-pub fn get_all(host: &str,socks5: Option<u32>, keypair: XOnlyPair)->Result<Vec<MemberIdentity>, S5Error>{
+pub fn get_all(host: &str,socks5: Option<u32>, xonly_pair: XOnlyPair)->Result<Vec<MemberIdentity>, S5Error>{
     let full_url = host.to_string() + &APIEndPoint::AllIdentities.to_string();
     let nonce = nonce();
-    let signature = sign_request(keypair.clone(), HttpMethod::Get, APIEndPoint::AllIdentities, &nonce).unwrap();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Get, APIEndPoint::AllIdentities, &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -192,7 +264,7 @@ pub fn get_all(host: &str,socks5: Option<u32>, keypair: XOnlyPair)->Result<Vec<M
     };
     match agent.get(&full_url)
         .set(&HttpHeader::Signature.to_string(), &signature)
-        .set(&HttpHeader::Pubkey.to_string(), &keypair.pubkey.to_string())
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .call(){
             Ok(response)=>
@@ -209,10 +281,10 @@ pub fn get_all(host: &str,socks5: Option<u32>, keypair: XOnlyPair)->Result<Vec<M
         }
 }
 
-pub fn remove(host: &str, socks5: Option<u32>, keypair: XOnlyPair)->Result<(), S5Error>{
+pub fn remove(host: &str, socks5: Option<u32>, xonly_pair: XOnlyPair)->Result<(), S5Error>{
     let full_url = host.to_string() + &APIEndPoint::Identity.to_string();
     let nonce = nonce();
-    let signature = sign_request(keypair.clone(), HttpMethod::Delete, APIEndPoint::Identity, &nonce).unwrap();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Delete, APIEndPoint::Identity, &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -230,7 +302,7 @@ pub fn remove(host: &str, socks5: Option<u32>, keypair: XOnlyPair)->Result<(), S
     };
     match agent.delete(&full_url)
         .set(&HttpHeader::Signature.to_string(), &signature)
-        .set(&HttpHeader::Pubkey.to_string(), &keypair.pubkey.to_string())
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .call(){
             Ok(response)=> match ServerStatusResponse::structify(&response.into_string().unwrap())

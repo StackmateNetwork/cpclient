@@ -47,6 +47,7 @@ pub enum APIEndPoint{
     AdminInvite(InvitePermission),
     UserInvite,
     Identity,
+    ServerIdentity,
     AllIdentities,
     Announce(AnnouncementType),
     Announcements(OwnedBy),
@@ -54,6 +55,7 @@ pub enum APIEndPoint{
     Post(Option<String>),
     Posts(OwnedBy),
     PostKeys,
+    LastDerivation,
     Notifications
 }
 
@@ -125,6 +127,7 @@ impl APIEndPoint{
             APIEndPoint::AdminInvite(perm)=>"/api/v2/identity/admin/invitation?".to_string() +&perm.to_query(),
             APIEndPoint::UserInvite=>"/api/v2/identity/invitation".to_string(),
             APIEndPoint::Identity=>"/api/v2/identity".to_string(),
+            APIEndPoint::ServerIdentity=>"/api/v2/identity/server".to_string(),
             APIEndPoint::AllIdentities=>"/api/v2/identity/all".to_string(),
             APIEndPoint::Announce(kind)=>"/api/v2/announcement/".to_string() + &kind.to_string().to_lowercase(),
             APIEndPoint::Revoke(kind)=>"/api/v2/announcement/".to_string() + &kind.to_string().to_lowercase() + "/revoke",
@@ -142,6 +145,7 @@ impl APIEndPoint{
             },
             APIEndPoint::Posts(owner)=>"/api/v2/post/".to_string() + &owner.to_string(),
             APIEndPoint::PostKeys=>"/api/v2/post/keys".to_string(),
+            APIEndPoint::LastDerivation=>"/api/v2/last/derivation".to_string(),
             APIEndPoint::Notifications=>"/api/v3/notifications".to_string(),
         }
     }

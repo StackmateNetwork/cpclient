@@ -100,12 +100,12 @@ pub fn keypair_from_xprv_str(xprv: &str) -> Result<KeyPair, S5Error> {
     Ok(result) => result,
     Err(_) => return Err(S5Error::new(ErrorKind::Key, "BAD XPRV STRING")),
   };
-  let key_pair = match KeyPair::from_seckey_str(&secp, &hex::encode(xprv.private_key.secret_bytes())) {
-    Ok(kp) => kp,
-    Err(_) => return Err(S5Error::new(ErrorKind::Key, "BAD SECKEY STRING")),
-  };
+   match KeyPair::from_seckey_str(&secp, &hex::encode(xprv.private_key.secret_bytes())) {
+    Ok(kp) => Ok(kp),
+    Err(_) => Err(S5Error::new(ErrorKind::Key, "BAD SECKEY STRING")),
+  }
 
-  Ok(key_pair)
+ 
 }
 pub fn pubkey_from_str(
   pubkey: &str
