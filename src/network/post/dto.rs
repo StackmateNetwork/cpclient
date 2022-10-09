@@ -261,7 +261,7 @@ fn my_posts(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, filter: Option
     let filter = if filter.is_some(){"?genesis_filter=".to_string() + &filter.unwrap().to_string()}else{"".to_string()};
     let full_url = host.to_string() + &APIEndPoint::Posts(OwnedBy::Me).to_string() + &filter;
     let nonce = nonce();
-    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Post(Some("self".to_string())), &nonce).unwrap();
+    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Posts(OwnedBy::Me), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -302,7 +302,7 @@ fn others_posts(host: &str, socks5: Option<u32>, key_pair: XOnlyPair, filter: Op
     let full_url = host.to_string() + &APIEndPoint::Posts(OwnedBy::Others).to_string() + &filter;
 
     let nonce = nonce();
-    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Post(Some("others".to_string())), &nonce).unwrap();
+    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Posts(OwnedBy::Others), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -413,13 +413,14 @@ pub fn single_post(host: &str, socks5: Option<u32>, key_pair: XOnlyPair,post_id:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::network::identity::dto::{admin_invite,register,get_all};
+    use crate::network::identity::dto::{admin_invite,user_invite,register,get_all};
     use crate::key::ec;
     use crate::key::seed;
     use crate::key::child;
     use crate::network::post::model::{Post,Payload,Recipient};
     use bdk::bitcoin::network::constants::Network;
     use crate::network::identity::model::{UserIdentity};
+    use crate::network::handler::{InvitePermission};
 
     #[test]
     #[ignore]
@@ -427,17 +428,14 @@ mod tests {
         let url = "http://localhost:3021";
         // ADMIN INVITE
         let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6";
-        let client_invite_code1 = admin_invite(url, None,admin_invite_code).unwrap();
+        let client_invite_code1 = admin_invite(url, None,admin_invite_code,InvitePermission::Standard).unwrap();
         assert_eq!(client_invite_code1.len() , 32);
         
-        let client_invite_code2 = admin_invite(url, None,admin_invite_code).unwrap();
-        assert_eq!(client_invite_code1.len() , 32);
-
-        let client_invite_code3 = admin_invite(url, None,admin_invite_code).unwrap();
-        assert_eq!(client_invite_code1.len() , 32);
+        let client_invite_code2 = admin_invite(url, None,admin_invite_code,InvitePermission::Privilege(1)).unwrap();
+        assert_eq!(client_invite_code2.len() , 32);
 
         // REGISTER USERS
-        let social_root_scheme = "m/128h/0h";
+        let social_root_scheme = "m/128h/0h/0h";
 
         let nonce = nonce();
 
@@ -445,21 +443,21 @@ mod tests {
         let user1 = "builder".to_string() + &nonce[0..3];
         let mut my_identity = UserIdentity::new(user1.clone(),0,seed1.xprv);
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
-
         assert!(register(url, None, xonly_pair1.clone(), &client_invite_code1, &user1).is_ok());
         
         let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = child::to_path_str(seed2.xprv, social_root_scheme).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2.xprv);
         let user2 = "facilitator".to_string() + &nonce[0..3];
-        
         assert!(register(url, None, xonly_pair2.clone(), &client_invite_code2, &user2).is_ok());
+
+        let client_invite_code3 = user_invite(url, None, xonly_pair2.clone(),&client_invite_code2).unwrap();
+        assert_eq!(client_invite_code3.len() , 32);
 
         let seed3 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child3 = child::to_path_str(seed3.xprv, social_root_scheme).unwrap();
         let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3.xprv);
         let user3 = "escrow".to_string() + &nonce[0..3];
-        
         assert!(register(url, None, xonly_pair3.clone(), &client_invite_code3, &user3).is_ok());
 
         // GET ALL USERS
@@ -484,7 +482,7 @@ mod tests {
         // Get posts & keys as user3
         let posts = get_all_posts(url, None, social_child3.xprv, None).unwrap();
         assert_eq!(posts.len(),1);
-        // // Get posts as self
+        // Get posts as self
         let posts = get_all_posts(url, None, my_identity.social_root, None).unwrap();
         assert_eq!(posts.len(),1);
         // Delete post

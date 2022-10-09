@@ -23,7 +23,8 @@ impl HttpMethod{
 
 pub enum HttpHeader{
     AdminInvite,
-    ClientInvite,
+    UserInvite,
+    InviteCode,
     Pubkey,
     Signature,
     Nonce
@@ -33,7 +34,8 @@ impl HttpHeader{
     pub fn to_string(&self)->String{
         match self{
             HttpHeader::AdminInvite=>"x-admin-invite-secret".to_string(),
-            HttpHeader::ClientInvite=>"x-client-invite-code".to_string(),
+            HttpHeader::UserInvite=>"x-invite-secret".to_string(),
+            HttpHeader::InviteCode=>"x-client-invite-code".to_string(),
             HttpHeader::Pubkey=>"x-client-pubkey".to_string(),
             HttpHeader::Signature=>"x-client-signature".to_string(),
             HttpHeader::Nonce=>"x-nonce".to_string(),
@@ -42,7 +44,8 @@ impl HttpHeader{
 }
 
 pub enum APIEndPoint{
-    AdminInvite,
+    AdminInvite(InvitePermission),
+    UserInvite,
     Identity,
     AllIdentities,
     Announce(AnnouncementType),
@@ -52,6 +55,19 @@ pub enum APIEndPoint{
     Posts(OwnedBy),
     PostKeys,
     Notifications
+}
+
+pub enum InvitePermission{
+    Standard,
+    Privilege(usize)
+}
+impl InvitePermission {
+    pub fn to_query(&self)->String{
+        match self{
+            InvitePermission::Standard  => "type=standard".to_string(),
+            InvitePermission::Privilege(count) => "type=priv&count=".to_string() + &count.to_string(),
+        }
+    }
 }
 
 pub enum OwnedBy{
@@ -106,7 +122,8 @@ impl FromStr for AnnouncementType{
 impl APIEndPoint{
     pub fn to_string(&self)->String{
         match self{
-            APIEndPoint::AdminInvite=>"/api/v2/identity/admin/invitation".to_string(),
+            APIEndPoint::AdminInvite(perm)=>"/api/v2/identity/admin/invitation?".to_string() +&perm.to_query(),
+            APIEndPoint::UserInvite=>"/api/v2/identity/invitation".to_string(),
             APIEndPoint::Identity=>"/api/v2/identity".to_string(),
             APIEndPoint::AllIdentities=>"/api/v2/identity/all".to_string(),
             APIEndPoint::Announce(kind)=>"/api/v2/announcement/".to_string() + &kind.to_string().to_lowercase(),
@@ -119,7 +136,7 @@ impl APIEndPoint{
             },
             APIEndPoint::Post(id)=>{
                 match id {
-                    Some(id)=>"/api/v2/post".to_string() + "/" + id,
+                    Some(id)=>"/api/v2/post/".to_string() + id,
                     None=>"/api/v2/post".to_string()
                 }
             },

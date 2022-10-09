@@ -192,6 +192,7 @@ mod tests {
     use crate::key::child;
     use bdk::bitcoin::network::constants::Network;
     use crate::network::handler::{AnnouncementType};
+    use crate::network::handler::{InvitePermission};
 
     #[test]
     #[ignore]
@@ -199,10 +200,10 @@ mod tests {
         let url = "http://localhost:3021";
         // ADMIN INVITE
         let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6";
-        let client_invite_code1 = admin_invite(url, None,admin_invite_code).unwrap();
+        let client_invite_code1 = admin_invite(url, None,admin_invite_code,InvitePermission::Standard).unwrap();
         assert_eq!(client_invite_code1.len() , 32);
         
-        let client_invite_code2 = admin_invite(url, None,admin_invite_code).unwrap();
+        let client_invite_code2 = admin_invite(url, None,admin_invite_code,InvitePermission::Standard).unwrap();
         assert_eq!(client_invite_code1.len() , 32);
 
         // REGISTER USERS
@@ -213,14 +214,14 @@ mod tests {
         let seed1 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child1 = child::to_path_str(seed1.xprv, social_root_scheme).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1.xprv);
-        let user1 = "builder".to_string() + &nonce[0..3];
+        let user1 = "builder".to_string() + &nonce[0..5];
 
         assert!(register(url, None, xonly_pair1.clone(), &client_invite_code1, &user1).is_ok());
         
         let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = child::to_path_str(seed2.xprv, social_root_scheme).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2.xprv);
-        let user2 = "facilitator".to_string() + &nonce[0..3];
+        let user2 = "facilitator".to_string() + &nonce[0..5];
         
         assert!(register(url, None, xonly_pair2.clone(), &client_invite_code2, &user2).is_ok());
 
