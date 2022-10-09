@@ -193,6 +193,8 @@ mod tests {
     use bdk::bitcoin::network::constants::Network;
     use crate::network::handler::{AnnouncementType};
     use crate::network::handler::{InvitePermission};
+    use bdk::bitcoin::util::bip32::{ExtendedPrivKey};
+    use std::str::FromStr;
 
     #[test]
     #[ignore]
@@ -207,21 +209,19 @@ mod tests {
         assert_eq!(client_invite_code1.len() , 32);
 
         // REGISTER USERS
-        let social_root_scheme = "m/128h/0h";
-
         let nonce = nonce();
 
         let seed1 = seed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child1 = child::to_path_str(seed1.xprv, social_root_scheme).unwrap();
-        let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1.xprv);
-        let user1 = "builder".to_string() + &nonce[0..5];
+        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
+        let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1);
+        let user1 = "builder".to_string() + &nonce[0..3];
 
         assert!(register(url, None, xonly_pair1.clone(), &client_invite_code1, &user1).is_ok());
         
         let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child2 = child::to_path_str(seed2.xprv, social_root_scheme).unwrap();
-        let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2.xprv);
-        let user2 = "facilitator".to_string() + &nonce[0..5];
+        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
+        let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
+        let user2 = "facilitator".to_string() + &nonce[0..3];
         
         assert!(register(url, None, xonly_pair2.clone(), &client_invite_code2, &user2).is_ok());
 

@@ -261,7 +261,7 @@ mod tests {
     use bitcoin::network::constants::Network;
 
     #[test]
-    // #[ignore]
+    #[ignore]
     fn test_identities_dto(){
         let url = "http://localhost:3021";
         // ADMIN INVITE

@@ -6,6 +6,7 @@ use crate::util::e::{ErrorKind, S5Error};
 use crate::key::ec::{XOnlyPair};
 use crate::key::child;
 use crate::key::encryption;
+use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MemberIdentity{
@@ -15,22 +16,20 @@ pub struct MemberIdentity{
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserIdentity{
-    pub username: String,
-    pub account: u64,
     pub social_root: ExtendedPrivKey,
-    pub last_path: String,
+    pub account: u32,
 }
 
 impl UserIdentity {
-    pub fn new(username: String, account: u64, root: ExtendedPrivKey)->Self{
-        let social_path = "m/128h/0h/".to_string() + &account.to_string() + "h";
-        let social_root = child::to_path_str(root, &social_path).unwrap().xprv;
-        UserIdentity{
-            username,
-            account,
+    pub fn new(social_root: String, account: u32)->Result<Self,S5Error>{
+        let social_root = match ExtendedPrivKey::from_str(&social_root){
+            Ok(root)=>root,
+            Err(_)=>return Err(S5Error::new(ErrorKind::Input, "Bad social root key string."))
+        };
+        Ok(UserIdentity{
             social_root,
-            last_path: "m/1h/0h".to_string()
-        }
+            account,
+        })
     }
     pub fn stringify(&self) -> Result<String, S5Error> {
         match serde_json::to_string(self) {
@@ -59,33 +58,11 @@ impl UserIdentity {
 
         Ok(UserIdentity::structify(&id).unwrap())
     }
-    fn increment_path(&mut self)->(){
-        let last_ds = &self.clone().last_path;
-        let mut split_ds: Vec<String> = last_ds.replace("h","").replace("'","").split("/").map(|s| s.to_string()).collect();
-        let rotator = split_ds.pop().unwrap().parse::<u64>().unwrap() + 1;
-        let join: String = split_ds.into_iter().map(|val| {
-            if val == "m" { val + "/"} 
-            else { val + "h/" }
-        }).collect();
-        let new_ds = join + &rotator.to_string() + "h";
-        
-        self.last_path = new_ds;
-        ()
-    }
-    pub fn to_member_id(&self)->MemberIdentity{
-        let pubkey = XOnlyPair::from_xprv(self.clone().social_root).pubkey;
-        let username = self.clone().username;
-        MemberIdentity{
-            username: username,
-            pubkey: pubkey
-        }
-    }
     pub fn to_xonly_pair(&self)->XOnlyPair{
        XOnlyPair::from_xprv(self.clone().social_root)
     }
-    pub fn derive_encryption_key(&mut self)->String{
-        self.increment_path();
-        let enc_source = child::to_path_str(self.social_root, &self.last_path).unwrap().xprv.to_string();
+    pub fn derive_encryption_key(&mut self, index: u32)->String{
+        let enc_source = child::hex(self.social_root.to_string(), index).unwrap();
         encryption::key_hash256(&enc_source)
     }
 }

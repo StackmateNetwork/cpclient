@@ -40,3 +40,4 @@ tungstenite = {version = "0.16.0", features = ["native-tls"]}
 url = "2.2.2"
 http = "0.2.8"
 openssl = { version = "0.10", features = ["vendored"] }
+bip85 = "0.1.1"

@@ -207,8 +207,8 @@ impl ServerPostModel{
 
         // check if reponse owner is self or other
         if self.owner == my_xonly_pair.pubkey {
-            let decryption_key_root = child::to_path_str(social_root, &self.clone().derivation_scheme).unwrap();
-            let decryption_key = key_hash256(&decryption_key_root.xprv.to_string());
+            let decryption_key_root = child::hex(social_root.to_string(), self.clone().derivation_scheme.parse::<u32>().unwrap()).unwrap();
+            let decryption_key = key_hash256(&decryption_key_root);
             let plain_json_string = match cc20p1305_decrypt(&self.clone().cypher_json, &decryption_key){
                 Ok(result)=>result,
                 Err(_)=>return Err(S5Error::new(ErrorKind::Key, "Decryption Error"))
@@ -421,7 +421,8 @@ mod tests {
     use bdk::bitcoin::network::constants::Network;
     use crate::network::identity::model::{UserIdentity};
     use crate::network::handler::{InvitePermission};
-
+    use bdk::bitcoin::util::bip32::{ExtendedPrivKey};
+    use std::str::FromStr;
     #[test]
     #[ignore]
     fn test_post_dto(){
@@ -435,19 +436,18 @@ mod tests {
         assert_eq!(client_invite_code2.len() , 32);
 
         // REGISTER USERS
-        let social_root_scheme = "m/128h/0h/0h";
-
         let nonce = nonce();
 
         let seed1 = seed::generate(24, "", Network::Bitcoin).unwrap();
         let user1 = "builder".to_string() + &nonce[0..3];
-        let mut my_identity = UserIdentity::new(user1.clone(),0,seed1.xprv);
+        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
+        let mut my_identity = UserIdentity::new(social_child1.to_string(),0).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
         assert!(register(url, None, xonly_pair1.clone(), &client_invite_code1, &user1).is_ok());
         
         let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child2 = child::to_path_str(seed2.xprv, social_root_scheme).unwrap();
-        let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2.xprv);
+        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
+        let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];
         assert!(register(url, None, xonly_pair2.clone(), &client_invite_code2, &user2).is_ok());
 
@@ -455,8 +455,8 @@ mod tests {
         assert_eq!(client_invite_code3.len() , 32);
 
         let seed3 = seed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child3 = child::to_path_str(seed3.xprv, social_root_scheme).unwrap();
-        let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3.xprv);
+        let social_child3 = ExtendedPrivKey::from_str(&child::social_root(seed3.xprv.to_string(),0).unwrap()).unwrap();
+        let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3);
         let user3 = "escrow".to_string() + &nonce[0..3];
         assert!(register(url, None, xonly_pair3.clone(), &client_invite_code3, &user3).is_ok());
 
@@ -468,19 +468,20 @@ mod tests {
         // Create a struct to share
         let message_to_share = Payload::Message("Hello :)".to_string());
         let post = Post::new(Recipient::Direct(xonly_pair3.clone().pubkey), message_to_share, xonly_pair1.clone()); 
-        let encryption_key = my_identity.derive_encryption_key();
+        let index = 0;
+        let encryption_key = my_identity.derive_encryption_key(index);
         println!("{encryption_key}");
         let cypher_json = post.to_cypher(encryption_key.clone());
-        let cpost_req = ServerPostRequest::new(0, &my_identity.last_path,&cypher_json);
+        let cpost_req = ServerPostRequest::new(0, &index.to_string(),&cypher_json);
         let post_id = create(url, None,xonly_pair1.clone(), cpost_req).unwrap();
         assert_eq!(post_id.len(), 24);
         let decrypkeys = DecryptionKey::make_for_many(xonly_pair1.clone(),[xonly_pair2.clone().pubkey,xonly_pair3.clone().pubkey].to_vec(), encryption_key).unwrap();
         assert!(keys(url, None, xonly_pair1.clone(), &post_id,decrypkeys).is_ok());
         // Get posts & keys as user2
-        let posts = get_all_posts(url, None, social_child2.xprv, None).unwrap();
+        let posts = get_all_posts(url, None, social_child2.clone(), None).unwrap();
         assert_eq!(posts.len(),1);
         // Get posts & keys as user3
-        let posts = get_all_posts(url, None, social_child3.xprv, None).unwrap();
+        let posts = get_all_posts(url, None, social_child3.clone(), None).unwrap();
         assert_eq!(posts.len(),1);
         // Get posts as self
         let posts = get_all_posts(url, None, my_identity.social_root, None).unwrap();
