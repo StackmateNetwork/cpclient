@@ -20,18 +20,23 @@ Stringified JSON is used as IO.
 `genesis_filter` is a common field among calls that return large vector of objects.
 They can be filtered by providing this field, which will only return entries made after a certain timestamp. Default is set to 0 if no value is passed.
 
+#### socks5
+Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
+
+### FUNCTIONS
+
 ### create_social_root
 #### Input
 ```json
 {
     root_xprv: String,
+    account: uint
 }
 ```
 #### Output
 ```json
 {
     social_root: String,
-    path: String,
 }
 ```
 
@@ -166,18 +171,8 @@ AnnouncementKind{
 ```
 
 ### create_post
-`path` follows the given application standard: `m/kind'/reset'/reset'/index'`
 
-`Preferences` uses `kind` = 0
-`Message` uses `kind` = 1
-`Secret` uses `kind` = 2
-`Xpub` uses `kind` = 3
-
-`path` field must be managed by the user. It must be incremented for every new post to achieve forward secrecy at the `index` level.
-
-User can use the `Preferences` type post to store their last used path, for better persistence. 
-
-When in doubt, increment the `reset` path or always use a random nonce; to ensure forward secrecy.
+Users must keep track of the last used index to maintain forward secrecy. The server also keeps track of it, but this should only be used in case of recovery.
 
 #### Input
 ```json
@@ -188,7 +183,7 @@ When in doubt, increment the `reset` path or always use a random nonce; to ensur
     to: String,
     kind: PayloadKind,
     message: String,
-    path: String,
+    index: uint,
 }
 ```
 ```enum
@@ -205,6 +200,22 @@ PayloadKind{
 }
 ```
 
+### last_index
+#### Input
+```json
+{
+    hostname: String,
+    socks5: uint,
+    social_root: String,
+}
+```
+
+#### Output
+```json
+{
+    last_index: uint,
+}
+```
 ### create_post_keys
 Use the same `path` value as the post made. This is required to ensure recipients recieve the correct decryption key.
 
