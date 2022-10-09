@@ -25,11 +25,11 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 
 ### FUNCTIONS
 
-### create_social_root
+### create_social_root (COMPLETED)
 #### Input
 ```json
 {
-    root_xprv: String,
+    master_root: String,
     account: uint
 }
 ```
@@ -40,7 +40,7 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 }
 ```
 
-### get_server_identity
+### server_identity (COMPLETED)
 #### Input
 ```json
 {
@@ -57,14 +57,13 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 }
 ```
 
-### get_members
+### get_members (COMPLETED)
 #### Input
 ```json
 {
     hostname: String,
     socks5: uint,
     social_root: String,
-    genesis_filter: uint,
 }
 ```
 #### Output
@@ -74,30 +73,39 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 }
 ```
 ```json
-Member{
+Member {
     username: String,
     pubkey: String,
 }
 ```
 
-### register
+### admin_invite (COMPLETED)
+Only applicable for an admin with a secret.
+
+kind must be either "priv/privileged", all other string values will default to "standard".
+
+count sets how many users a privileged user can invite. Use 0 for standard invitations.
+
 #### Input
 ```json
 {
     hostname: String,
     socks5: uint,
-    social_root: String,
-    username: String,
-}
-```
-#### Output
-```json
-{
-    status: bool
+    admin_secret: String,
+    kind: String,
+    count: usize,
 }
 ```
 
-### user_invite
+#### Output
+```json
+{
+    invite_code: String,
+}
+```
+
+### priv_user_invite (COMPLETED)
+
 Only applicable to privileged users created by the admin.
 
 #### Input
@@ -118,6 +126,22 @@ The resulting `invite_code` will be a standard kind, which cannot be used to inv
 }
 ```
 
+### join (COMPLETED)
+#### Input
+```json
+{
+    hostname: String,
+    socks5: uint,
+    social_root: String,
+    username: String,
+}
+```
+#### Output
+```json
+{
+    status: bool
+}
+```
 
 ### get_badges
 #### Input
@@ -304,7 +328,8 @@ Get a single post by id. To be used as notification stream provides post_ids.
 }
 ```
 
-### delete_identity
+
+### leave (COMPLETED)
 
 Removes an identity and all associated badges and posts.
 

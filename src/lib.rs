@@ -371,7 +371,7 @@ mod tests {
     use std::ffi::{CStr, CString};
 
     #[test]
-    // #[ignore]
+    #[ignore]
     fn test_ffi_composite() {
         unsafe {
             //
