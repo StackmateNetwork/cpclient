@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use ureq::{Proxy, AgentBuilder};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,ServerStatusResponse, OwnedBy, sign_request};
-use crate::network::post::model::{LocalPostModel, Post, DecryptionKey, DerivationIndex};
+use crate::network::post::model::{LocalPostModel, Post, DecryptionKey, DerivationIndex,AllPosts};
 use bitcoin::util::bip32::ExtendedPrivKey;
 use crate::key::encryption::{nonce,key_hash256,cc20p1305_decrypt};
 use crate::key::child;
@@ -338,17 +338,17 @@ fn others_posts(host: String, socks5: Option<u32>, key_pair: XOnlyPair, filter: 
         }
 }
 
-fn process_cypherposts(social_root: ExtendedPrivKey,posts: Vec<ServerPostModel>)->Result<Vec<LocalPostModel>,S5Error>{
+fn process_cypherposts(social_root: ExtendedPrivKey,posts: Vec<ServerPostModel>)->Result<AllPosts,S5Error>{
     let mut plains = posts.into_iter().map(
         |post| {
             post.decypher(social_root).unwrap()
         }
     ).collect::<Vec<LocalPostModel>>();
     plains.sort_by_key(|post| post.genesis);
-    Ok(plains)
+    Ok(AllPosts::new(plains))
 }
 
-pub fn get_all_posts(host: String, socks5: Option<u32>,  social_root: ExtendedPrivKey, filter: Option<u64>)->Result<Vec<LocalPostModel>,S5Error>{
+pub fn get_all_posts(host: String, socks5: Option<u32>,  social_root: ExtendedPrivKey, filter: Option<u64>)->Result<AllPosts,S5Error>{
     let xonly_pair = XOnlyPair::from_xprv(social_root.clone());
     let mut all_posts = my_posts(host.clone(),socks5, xonly_pair.clone(), filter).unwrap();
     all_posts.append(&mut others_posts(host,socks5, xonly_pair, filter).unwrap());
@@ -481,7 +481,7 @@ mod tests {
         let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let user1 = "builder".to_string() + &nonce[0..3];
         let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
-        let mut my_identity = UserIdentity::new(social_child1.to_string()).unwrap();
+        let my_identity = UserIdentity::new(social_child1.to_string()).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
         assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
@@ -518,14 +518,14 @@ mod tests {
         let decrypkeys = DecryptionKey::make_for_many(xonly_pair1.clone(),[xonly_pair2.clone().pubkey,xonly_pair3.clone().pubkey].to_vec(), encryption_key).unwrap();
         assert!(keys(url.clone(), None, xonly_pair1.clone(), post_id.clone(),decrypkeys).is_ok());
         // Get posts & keys as user2
-        let posts = get_all_posts(url.clone(), None, social_child2.clone(), None).unwrap();
-        assert_eq!(posts.len(),1);
+        let all = get_all_posts(url.clone(), None, social_child2.clone(), None).unwrap();
+        assert_eq!(all.posts.len(),1);
         // Get posts & keys as user3
-        let posts = get_all_posts(url.clone(), None, social_child3.clone(), None).unwrap();
-        assert_eq!(posts.len(),1);
+        let all = get_all_posts(url.clone(), None, social_child3.clone(), None).unwrap();
+        assert_eq!(all.posts.len(),1);
         // Get posts as self
-        let posts = get_all_posts(url.clone(), None, my_identity.social_root, None).unwrap();
-        assert_eq!(posts.len(),1);
+        let all = get_all_posts(url.clone(), None, my_identity.social_root, None).unwrap();
+        assert_eq!(all.posts.len(),1);
         // Delete post
         assert!(remove(url.clone(), None,xonly_pair1.clone(), post_id.clone()).is_ok());
         // KEEP BUILDING!

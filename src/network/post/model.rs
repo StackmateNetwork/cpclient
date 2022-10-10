@@ -29,6 +29,14 @@ impl PostId{
         };
         CString::new(stringified).unwrap().into_raw()
     }
+    pub fn structify(stringified: &str) -> Result<PostId, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying PostId"))
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -51,6 +59,46 @@ impl LocalPostModel{
         };
     
         CString::new(stringified).unwrap().into_raw()
+    }
+    pub fn structify(stringified: &str) -> Result<LocalPostModel, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying LocalPostModel"))
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AllPosts {
+    pub posts: Vec<LocalPostModel>
+}
+impl AllPosts{
+    pub fn new(posts: Vec<LocalPostModel>)->Self{
+        AllPosts{
+            posts
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+    }
+    pub fn structify(stringified: &str) -> Result<AllPosts, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying AllPosts"))
+            }
+        }
     }
 }
 
@@ -176,8 +224,8 @@ impl ToString for PayloadKind {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Payload {
-    kind: PayloadKind,
-    value: String,
+    pub kind: PayloadKind,
+    pub value: String,
 }
 impl Payload {
     pub fn new(kind: PayloadKind, value: String)->Self{
@@ -240,7 +288,7 @@ impl DecryptionKey{
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DerivationIndex{
-    pub last_index: u32
+    pub last_used: u32
 }
 impl DerivationIndex{
     pub fn structify(stringified: &str) -> Result<DerivationIndex, S5Error> {
@@ -264,7 +312,6 @@ impl DerivationIndex{
         CString::new(stringified).unwrap().into_raw()
     }
 }
-
 
 
 #[cfg(test)]

@@ -179,15 +179,13 @@ struct ServerResponseStatus {
 }
 ```
 
-### post (COMPLETED)
+### send_post (COMPLETED)
 
 Users must keep track of the last used index to maintain forward secrecy. The server also keeps track of it, but this should only be used in case of recovery.
 
 `to` semi-colon separated `kind:value` where kind is either "direct" where value is a pubkey OR "group" where value is a group id.
 
 `payload`  semi-colon separated `kind:value` where kind is either "message" where value is a message OR "secret" where value is a hash.
-
-`recipients` comma separated list of pubkeys who can view the post (for whome to make keys).
  
 #### Input
 ```dart
@@ -197,13 +195,34 @@ Users must keep track of the last used index to maintain forward secrecy. The se
     index: int,
     to: String,
     payload: String,
-    recipients: String,
 }
 ```
 #### Output
 ```rust
 struct PostId{
     id: String,
+}
+```
+
+### send_keys (COMPLETED)
+
+Use the same `index` used when sending the related post. 
+
+`recipients` comma separated list of pubkeys who can view the post (for whome to make keys).
+ 
+#### Input
+```dart
+    hostname: String,
+    socks5: int,
+    social_root: String,
+    index: int,
+    recipients: String,
+}
+```
+#### Output
+```rust
+struct ServerResponseStatus{
+    status: bool,
 }
 ```
 

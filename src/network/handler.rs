@@ -147,7 +147,7 @@ impl APIEndPoint{
             },
             APIEndPoint::Posts(owner)=>"/api/v2/post/".to_string() + &owner.to_string(),
             APIEndPoint::PostKeys=>"/api/v2/post/keys".to_string(),
-            APIEndPoint::LastDerivation=>"/api/v2/last/derivation".to_string(),
+            APIEndPoint::LastDerivation=>"/api/v2/post/last/derivation".to_string(),
             APIEndPoint::Notifications=>"/api/v3/notifications".to_string(),
         }
     }

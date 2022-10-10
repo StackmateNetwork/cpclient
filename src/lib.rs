@@ -48,7 +48,6 @@ pub unsafe extern "C" fn create_social_root(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// GET SERVER IDENTITY
 /// GETS SERVER NAME & KIND (PRIVATE OR PUBLIC)
 /// PRIVATE SERVERS REQUIRE AN INVITE
@@ -96,7 +95,6 @@ pub unsafe extern "C" fn server_identity(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// GENERATE AN INVITE CODE AS ADMIN
 /// `kind` must be either "standard/std" or "privileged/priv"
 /// `count` is how many users a privileged user can invite (use 0 for standard invites)
@@ -161,7 +159,6 @@ pub unsafe extern "C" fn admin_invite(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// GENERATE AN INVITE CODE AS PRIVILEGED USER
 /// CAN ONLY GENERATE STANDARD INVITES
 /// # Safety
@@ -214,7 +211,6 @@ pub unsafe extern "C" fn priv_user_invite(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// GET ALL MEMBERS ON THE SERVER
 /// USE TO ENSURE USERNAME OF CHOICE IS NOT TAKEN
 /// # Safety
@@ -260,7 +256,6 @@ pub unsafe extern "C" fn get_members(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// REGISTER TO A PRIVATE SERVER
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
@@ -319,7 +314,6 @@ pub unsafe extern "C" fn join(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// LEAVE A SERVER
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
@@ -364,7 +358,6 @@ pub unsafe extern "C" fn leave(
         Err(e)=>e.c_stringify()
     }
 }
-
 /// CREATE A POST & KEYS
 /// `to` must be colon separated `kind:value` of recipient
 /// `payload` must be a colon separated `kind:value` of payload (watch out for special characters)
@@ -373,13 +366,105 @@ pub unsafe extern "C" fn leave(
 /// - This function is unsafe because it dereferences and a returns raw pointer.
 /// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.
 #[no_mangle]
-pub unsafe extern "C" fn post(
+pub unsafe extern "C" fn send_post(
     hostname: *const c_char,
     socks5: *const c_char,
     social_root: *const c_char,
     index: *const c_char,
     to: *const c_char,
     payload: *const c_char,
+) -> *mut c_char {
+    let hostname_cstr = CStr::from_ptr(hostname);
+    let hostname:String = match hostname_cstr.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert hostname to String").c_stringify(),
+    };
+
+    let socks5 = CStr::from_ptr(socks5);
+    let socks5:Option<u32> = match socks5.to_str() {
+        Ok(string) => match string.parse::<u32>(){
+            Ok(result)=>if result == 0 {
+                None
+            }else{
+                Some(result)
+            },
+            Err(_)=>return S5Error::new(ErrorKind::Input,"Could not parse socks5 port to uint32").c_stringify()
+        },
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert socks5 port to String").c_stringify(),
+    };
+    let social_root = CStr::from_ptr(social_root);
+    let social_root:String = match social_root.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert social root to String").c_stringify(),
+    };
+    let keypair = match ec::keypair_from_xprv_str(&social_root){
+        Ok(keypair)=>keypair,
+        Err(e)=>return e.c_stringify(),
+    };
+    let xonly_pair = ec::XOnlyPair::from_keypair(keypair);
+
+    let index = CStr::from_ptr(index);
+    let index:u32 = match index.to_str() {
+        Ok(string) => match string.parse::<u32>(){
+            Ok(result)=>result,
+            Err(_)=>return S5Error::new(ErrorKind::Input,"Could not parse index to u32").c_stringify()
+        },
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert index to String").c_stringify(),
+    };
+    let to = CStr::from_ptr(to);
+    let to: post::model::Recipient = match to.to_str(){
+        Ok(result)=>{
+            match post::model::Recipient::from_str(result){
+                Ok(recipient)=>recipient,
+                Err(e)=>return e.c_stringify()
+            }
+        }
+        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert to into String").c_stringify()
+    };
+    let payload = CStr::from_ptr(payload);
+    let payload: post::model::Payload = match payload.to_str(){
+        Ok(result)=>{
+            match post::model::Payload::from_str(result){
+                Ok(payload)=>payload,
+                Err(e)=>return e.c_stringify()
+            }
+        }
+        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert payload into String").c_stringify()
+    };
+
+    let my_identity = match identity::model::UserIdentity::new(social_root){
+        Ok(result)=>result,
+        Err(e)=>return e.c_stringify()
+    };
+
+    let post = post::model::Post::new(
+        to,
+        payload,
+        xonly_pair.clone()
+    );
+    let encryption_key = my_identity.derive_encryption_key(index);
+    let cypher = post.to_cypher(encryption_key.clone());
+
+    let request = post::dto::ServerPostRequest::new(0,index,&cypher);
+    match post::dto::create(hostname.clone(), socks5, xonly_pair.clone(),request){
+        Ok(id)=>post::model::PostId::new(id).c_stringify(),
+        Err(e)=> e.c_stringify()
+    }
+
+
+}
+/// SEND KEYS FOR A POST's RECIPIENTS
+/// `recipients` must be a comma separated list of recipients
+/// # Safety
+/// - This function is unsafe because it dereferences and a returns raw pointer.
+/// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.
+#[no_mangle]
+pub unsafe extern "C" fn send_keys(
+    hostname: *const c_char,
+    socks5: *const c_char,
+    social_root: *const c_char,
+    index: *const c_char,
+    post_id: *const c_char,
     recipients: *const c_char,
 ) -> *mut c_char {
     let hostname_cstr = CStr::from_ptr(hostname);
@@ -410,11 +495,7 @@ pub unsafe extern "C" fn post(
         Err(e)=>return e.c_stringify(),
     };
     let xonly_pair = ec::XOnlyPair::from_keypair(keypair);
-    let social_xprv = match ExtendedPrivKey::from_str(&social_root) {
-        Ok(result) => result,
-        Err(_) => return S5Error::new(ErrorKind::Key, "BAD XPRV STRING").c_stringify(),
-    };    
-    
+
     let index = CStr::from_ptr(index);
     let index:u32 = match index.to_str() {
         Ok(string) => match string.parse::<u32>(){
@@ -423,34 +504,19 @@ pub unsafe extern "C" fn post(
         },
         Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert index to String").c_stringify(),
     };
-    let to = CStr::from_ptr(to);
-    let to: post::model::Recipient = match to.to_str(){
-        Ok(result)=>{
-            match post::model::Recipient::from_str(result){
-                Ok(recipient)=>recipient,
-                Err(e)=>return e.c_stringify()
-            }
-        }
-        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert to into String").c_stringify()
-    };
-    let payload = CStr::from_ptr(payload);
-    let payload: post::model::Payload = match payload.to_str(){
-        Ok(result)=>{
-            match post::model::Payload::from_str(result){
-                Ok(payload)=>payload,
-                Err(e)=>return e.c_stringify()
-            }
-        }
-        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert payload into String").c_stringify()
+   
+    let post_id = CStr::from_ptr(post_id);
+    let post_id:String = match post_id.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert post_id to String").c_stringify(),
     };
 
     let recipients = CStr::from_ptr(recipients);
-
     let recipients: Vec<XOnlyPublicKey> = match recipients.to_str(){
         Ok(result)=>{
            let string_pubkeys: Vec<&str>= result.split(",").collect();
            if string_pubkeys.len() == 0 {
-                [].to_vec()
+                return S5Error::new(ErrorKind::Input,"Unable to parse recipients.").c_stringify()
            }
            else{
            let mut xonly_vec: Vec<XOnlyPublicKey> = [].to_vec();
@@ -470,38 +536,18 @@ pub unsafe extern "C" fn post(
         Ok(result)=>result,
         Err(e)=>return e.c_stringify()
     };
-
-    let post = post::model::Post::new(
-        to,
-        payload,
-        xonly_pair.clone()
-    );
     let encryption_key = my_identity.derive_encryption_key(index);
-    let cypher = post.to_cypher(encryption_key.clone());
-
-    let request = post::dto::ServerPostRequest::new(0,index,&cypher);
-    let post_id = match post::dto::create(hostname.clone(), socks5, xonly_pair.clone(),request){
-        Ok(id)=>id,
+    let decryption_keys = match post::model::DecryptionKey::make_for_many(xonly_pair.clone(), recipients.clone(), encryption_key.clone()){
+        Ok(keys)=>keys,
         Err(e)=>return e.c_stringify()
     };
 
-    if recipients.len() == 0 {
-        return post::model::PostId::new(post_id).c_stringify()
-    }
-    else{
-        let decryption_keys = match post::model::DecryptionKey::make_for_many(xonly_pair.clone(), recipients.clone(), encryption_key.clone()){
-            Ok(keys)=>keys,
-            Err(e)=>return e.c_stringify()
-        };
-
-        match post::dto::keys(hostname.clone(),socks5,xonly_pair.clone(),post_id.clone(),decryption_keys){
-            Ok(())=>post::model::PostId::new(post_id).c_stringify(),
-            Err(e)=>return e.c_stringify()
-        }
+    match post::dto::keys(hostname.clone(),socks5,xonly_pair.clone(),post_id.clone(),decryption_keys){
+        Ok(())=>network::handler::ServerStatusResponse::new(true).c_stringify(),
+        Err(e)=>return e.c_stringify()
     }
 
 }
-
 /// GET A SINGLE POST BY ID
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
@@ -563,8 +609,73 @@ pub unsafe extern "C" fn get_one_post(
     }
 
 }
+/// GET ALL POSTS FOR A USER
+/// # Safety
+/// - This function is unsafe because it dereferences and a returns raw pointer.
+/// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.
+#[no_mangle]
+pub unsafe extern "C" fn get_all_posts(
+    hostname: *const c_char,
+    socks5: *const c_char,
+    social_root: *const c_char,
+    genesis_filter: *const c_char,
+) -> *mut c_char {
+    let hostname_cstr = CStr::from_ptr(hostname);
+    let hostname:String = match hostname_cstr.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert hostname to String").c_stringify(),
+    };
 
-/// GET A SINGLE POST BY ID
+    let socks5 = CStr::from_ptr(socks5);
+    let socks5:Option<u32> = match socks5.to_str() {
+        Ok(string) => match string.parse::<u32>(){
+            Ok(result)=>if result == 0 {
+                None
+            }else{
+                Some(result)
+            },
+            Err(_)=>return S5Error::new(ErrorKind::Input,"Could not parse socks5 port to uint32").c_stringify()
+        },
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert socks5 port to String").c_stringify(),
+    };
+    let social_root = CStr::from_ptr(social_root);
+    let social_root:String = match social_root.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert social root to String").c_stringify(),
+    };
+    let social_xprv = match ExtendedPrivKey::from_str(&social_root) {
+        Ok(result) => result,
+        Err(_) => return S5Error::new(ErrorKind::Key, "BAD XPRV STRING").c_stringify(),
+    };    
+
+    let genesis_filter = CStr::from_ptr(genesis_filter);
+    let genesis_filter:Option<u64> = match genesis_filter.to_str() {
+        Ok(string) => {
+            match string.parse::<u64>(){
+                Ok(value)=>{
+                    if value == 0 {
+                        None
+                    }
+                    else {
+                        Some(value)
+                    }
+                }
+                Err(_)=> return S5Error::new(ErrorKind::Key, "Could not parse genesis filter to u64").c_stringify()
+            }
+        },
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert genesis filter to String").c_stringify(),
+    };
+    
+    match post::dto::get_all_posts(hostname.clone(),socks5,social_xprv.clone(),genesis_filter){
+        Ok(all)=>all.c_stringify(),
+        Err(e)=> e.c_stringify()
+    }
+
+}
+/// GET LAST DERIVATION INDEX
+/// USERS SHOULD STORE AND UPDATE LAST USED INDEX FOR FORWARD SECRECY
+/// USE THIS FUNCTION ONLY IN CASE OF RECOVERY AND LOSS OF LOCAL DATA
+/// AVOID USING THIS BEFORE EVERY POST BY KEEPING TRACK OF INDEX LOCALLY
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
 /// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.
@@ -610,36 +721,49 @@ pub unsafe extern "C" fn last_index(
 
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::ffi::{CStr, CString};
-
+    use bitcoin::network::constants::Network;
     #[test]
-    #[ignore]
+    // #[ignore]
     fn test_ffi_composite() {
         unsafe {
             //
             //
-            // CREATE SOCIAL ROOT
+            // CREATE USER1 SOCIAL ROOT
             //
             //
-            let master_xprv = "xprv9s21ZrQH143K3ncAtUgVY1zDx6aUQN5K2Jn5zQSFT27jCCNLz6APws3GcNsZXwvP64XaveqPkrG4kQGuWbRTo8CMUwZFkzRA95LF8o88qeb";
-            let master_xprv_cstr = CString::new(master_xprv).unwrap().into_raw();
+            let seed = key::seed::MasterKeySeed::generate(12, "", Network::Bitcoin).unwrap();
+            let master_xprv_cstr = CString::new(seed.xprv.to_string()).unwrap().into_raw();
             let account = "0";
             let account_cstr = CString::new(account).unwrap().into_raw();
-            let expected_child = "xprv9s21ZrQH143K3KdqdcqNykVWEQQhPcpThaaZ4yMhUSneiaxr5kMMXt4E6msuSv8znKK7gxo52soSmV2rp9xBRKTn4NXDwLH2w5Li1DDU7es";
             let result_ptr = create_social_root(
                 master_xprv_cstr, 
                 account_cstr
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
-            let child = key::child::SocialRoot::structify(result_str).unwrap();
-            assert_eq!(child.social_root, expected_child);
+            let ishi_child = key::child::SocialRoot::structify(result_str);
+            assert!(ishi_child.is_ok());
+            //
+            //
+            // CREATE USER2 SOCIAL ROOT
+            //
+            //
+            let seed = key::seed::MasterKeySeed::generate(12, "", Network::Bitcoin).unwrap();
+            let master_xprv_cstr = CString::new(seed.xprv.to_string()).unwrap().into_raw();
+            let account = "0";
+            let account_cstr = CString::new(account).unwrap().into_raw();
+            let result_ptr = create_social_root(
+                master_xprv_cstr, 
+                account_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let sushi_child = key::child::SocialRoot::structify(result_str);
+            assert!(sushi_child.is_ok());
             //
             //
             // GET SERVER IDENTITY
@@ -649,30 +773,16 @@ mod tests {
             let hostname_cstr = CString::new(hostname.clone()).unwrap().into_raw();
             let socks5 = "0";
             let socks5_cstr = CString::new(socks5).unwrap().into_raw();
-            let social_root_cstr =  CString::new(child.social_root).unwrap().into_raw();
+            let ishi_social_root_cstr =  CString::new(ishi_child.unwrap().social_root).unwrap().into_raw();
             let result_ptr = server_identity(
                 hostname_cstr,
                 socks5_cstr,
-                social_root_cstr,
+                ishi_social_root_cstr,
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
             let server_id = identity::model::ServerIdentity::structify(result_str).unwrap();
             assert_eq!(server_id.kind, "PRIVATE".to_string());
-            //
-            //
-            // GET MEMBERS
-            //
-            //
-            let result_ptr = get_members(
-                hostname_cstr,
-                socks5_cstr,
-                social_root_cstr,
-            );
-            let result_cstr = CStr::from_ptr(result_ptr);
-            let result_str = result_cstr.to_str().unwrap();
-            let members = identity::model::Members::structify(result_str);
-            assert!(members.is_ok());
             //
             //
             // ADMIN OPS (GET INVITE)
@@ -697,18 +807,56 @@ mod tests {
             assert_eq!(invitation.invite_code.len() , 32);
             //
             //
-            // REGISTER
+            // REGISTER USER 1
             //
             //
             let nonce = key::encryption::nonce();
-            let username = "ishi".to_string() + &nonce[0..5].to_lowercase();
+            let username = "ishii".to_string() + &nonce[0..5].to_lowercase();
             let username_cstr = CString::new(username.clone()).unwrap().into_raw();
             let invite_code_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
             let result_ptr = join(
                 hostname_cstr,
                 socks5_cstr,
-                social_root_cstr,
+                ishi_social_root_cstr,
                 username_cstr,
+                invite_code_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            println!("{result_str}");
+            let response = network::handler::ServerStatusResponse::structify(result_str).unwrap();
+            assert!(response.status);
+            //
+            //
+            // PRIV USER INVITE
+            //
+            //
+            let sushi_social_root_cstr =  CString::new(sushi_child.unwrap().social_root).unwrap().into_raw();
+            let invite_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
+            let result_ptr = priv_user_invite(
+                hostname_cstr,
+                socks5_cstr,
+                sushi_social_root_cstr,
+                invite_cstr,
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let invitation = identity::model::Invitation::structify(result_str).unwrap();
+            assert_eq!(invitation.invite_code.len() , 32);
+            //
+            //
+            // REGISTER USER 2
+            //
+            //
+            let nonce = key::encryption::nonce();
+            let sushi_username = "sushii".to_string() + &nonce[0..5].to_lowercase();
+            let sushi_username_cstr = CString::new(sushi_username.clone()).unwrap().into_raw();
+            let invite_code_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
+            let result_ptr = join(
+                hostname_cstr,
+                socks5_cstr,
+                sushi_social_root_cstr,
+                sushi_username_cstr,
                 invite_code_cstr
             );
             let result_cstr = CStr::from_ptr(result_ptr);
@@ -717,13 +865,143 @@ mod tests {
             assert!(response.status);
             //
             //
-            // LEAVE
+            // GET MEMBERS
+            //
+            //
+            let result_ptr = get_members(
+                hostname_cstr,
+                socks5_cstr,
+                ishi_social_root_cstr,
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let members = identity::model::Members::structify(result_str);
+            assert!(members.is_ok());
+
+            //
+            //
+            // CREATE POST AS USER1
+            //
+            //
+            let mut sushi_pubkey="".to_string();
+            for identity in members.unwrap().identities{
+                if identity.username == sushi_username{
+                    sushi_pubkey = identity.pubkey.to_string();
+                }
+            };
+            let to = "direct:".to_string() + &sushi_pubkey;
+            let to_cstr = CString::new(to.clone()).unwrap().into_raw();
+            let message = "Hi sushi!".to_string();
+            let payload = format!("message:{message}");
+            let payload_cstr = CString::new(payload.clone()).unwrap().into_raw();
+            let index:u32 = 53;
+            let index_cstr = CString::new(index.to_string()).unwrap().into_raw();
+            let result_ptr = send_post(
+                hostname_cstr,
+                socks5_cstr,
+                ishi_social_root_cstr,
+                index_cstr,
+                to_cstr,
+                payload_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let post_id = post::model::PostId::structify(result_str);
+            assert!(post_id.is_ok());
+            //
+            //
+            // SEND KEYS TO USER2
+            //
+            //
+            let recipients = &sushi_pubkey;
+            let recipients_cstr = CString::new(recipients.clone()).unwrap().into_raw();
+            let post_id_cstr = CString::new(post_id.unwrap().id).unwrap().into_raw();
+            let result_ptr = send_keys(
+                hostname_cstr,
+                socks5_cstr,
+                ishi_social_root_cstr,
+                index_cstr,
+                post_id_cstr,
+                recipients_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let response = network::handler::ServerStatusResponse::structify(result_str).unwrap();
+            assert!(response.status);
+            //
+            //
+            // GET ONE POST AS USER1
+            //
+            //
+            let result_ptr = get_one_post(
+                hostname_cstr,
+                socks5_cstr,
+                ishi_social_root_cstr,
+                post_id_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let post = post::model::LocalPostModel::structify(result_str);
+            assert!(post.is_ok());
+            assert_eq!(post.unwrap().post.payload.value,message);
+            //
+            //
+            // GET ALL POSTS AS USER2
+            //
+            //
+            let filter: u64 = 0;
+            let filter_cstr = CString::new(filter.to_string()).unwrap().into_raw();
+
+            let result_ptr = get_all_posts(
+                hostname_cstr,
+                socks5_cstr,
+                sushi_social_root_cstr,
+                filter_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let all_posts = post::model::AllPosts::structify(result_str);
+            assert!(all_posts.is_ok());
+            assert_eq!(all_posts.unwrap().posts[0].post.payload.value,message);
+            //
+            //
+            // GET LAST INDEX AS USER1
+            //
+            //
+            let result_ptr = last_index(
+                hostname_cstr,
+                socks5_cstr,
+                ishi_social_root_cstr,
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            print!("{result_str}");
+            let derivation_index = post::model::DerivationIndex::structify(result_str);
+            assert!(derivation_index.is_ok());
+            assert_eq!(derivation_index.unwrap().last_used,index);
+            //
+            //
+            // LEAVE USER1
             //
             //
             let result_ptr = leave(
                 hostname_cstr,
                 socks5_cstr,
-                social_root_cstr,
+                ishi_social_root_cstr,
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let response = network::handler::ServerStatusResponse::structify(result_str).unwrap();
+            assert!(response.status);
+            //
+            //
+            // LEAVE USER2
+            //
+            //
+            let result_ptr = leave(
+                hostname_cstr,
+                socks5_cstr,
+                sushi_social_root_cstr,
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
