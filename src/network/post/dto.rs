@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use ureq::{Proxy, AgentBuilder};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,ServerStatusResponse, OwnedBy, sign_request};
-use crate::network::post::model::{LocalPostModel, Post, DecryptionKey};
+use crate::network::post::model::{LocalPostModel, Post, DecryptionKey, DerivationIndex};
 use bitcoin::util::bip32::ExtendedPrivKey;
 use crate::key::encryption::{nonce,key_hash256,cc20p1305_decrypt};
 use crate::key::child;
@@ -409,25 +409,11 @@ pub fn single_post(host: String, socks5: Option<u32>, xonly_pair: XOnlyPair,post
         }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ServerLastDerivationResponse{
-    pub last_index: u32
-}
-impl ServerLastDerivationResponse{
-    pub fn structify(stringified: &str) -> Result<ServerLastDerivationResponse, S5Error> {
-        match serde_json::from_str(stringified) {
-            Ok(result) => Ok(result),
-            Err(_) => {
-                Err(S5Error::new(ErrorKind::Internal, "Error stringifying ServerLastDerivationResponse"))
-            }
-        }
-    }
-}
 
-pub fn last_derivation(host: &str, socks5: Option<u32>, key_pair: XOnlyPair)->Result<u32, S5Error>{
-    let full_url = host.to_string() + &APIEndPoint::LastDerivation.to_string();
+pub fn last_derivation(host: String, socks5: Option<u32>, xonly_pair: XOnlyPair)->Result<DerivationIndex, S5Error>{
+    let full_url = host + &APIEndPoint::LastDerivation.to_string();
     let nonce = nonce();
-    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::LastDerivation, &nonce).unwrap();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Get, APIEndPoint::LastDerivation, &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -445,13 +431,13 @@ pub fn last_derivation(host: &str, socks5: Option<u32>, key_pair: XOnlyPair)->Re
     };
     match agent.get(&full_url)
         .set(&HttpHeader::Signature.to_string(), &signature)
-        .set(&HttpHeader::Pubkey.to_string(), &key_pair.pubkey.to_string())
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .call(){
-            Ok(response)=> match ServerLastDerivationResponse::structify(&response.into_string().unwrap())
+            Ok(response)=> match DerivationIndex::structify(&response.into_string().unwrap())
             {
                 Ok(result)=>{
-                    Ok(result.last_index)
+                    Ok(result)
                 },
                 Err(e) =>{
                     Err(e)
@@ -495,7 +481,7 @@ mod tests {
         let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let user1 = "builder".to_string() + &nonce[0..3];
         let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
-        let mut my_identity = UserIdentity::new(social_child1.to_string(),0).unwrap();
+        let mut my_identity = UserIdentity::new(social_child1.to_string()).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
         assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         

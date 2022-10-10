@@ -9,6 +9,29 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostId {
+    pub id: String,
+}
+impl PostId{
+    pub fn new(id: String)->Self{
+        PostId{
+            id
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+        CString::new(stringified).unwrap().into_raw()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LocalPostModel {
     pub id: String,
     pub genesis: u64,
@@ -212,6 +235,33 @@ impl DecryptionKey{
                 }
             }).collect()
         )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DerivationIndex{
+    pub last_index: u32
+}
+impl DerivationIndex{
+    pub fn structify(stringified: &str) -> Result<DerivationIndex, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error stringifying DerivationIndex"))
+            }
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
     }
 }
 

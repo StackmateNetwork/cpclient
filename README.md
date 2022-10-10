@@ -179,7 +179,7 @@ struct ServerResponseStatus {
 }
 ```
 
-### post
+### post (COMPLETED)
 
 Users must keep track of the last used index to maintain forward secrecy. The server also keeps track of it, but this should only be used in case of recovery.
 
@@ -202,42 +202,22 @@ Users must keep track of the last used index to maintain forward secrecy. The se
 ```
 #### Output
 ```rust
-struct SinglePost{
-    post: PlainPost,
+struct PostId{
+    id: String,
 }
 ```
 
-### last_index
-#### Input
-```dart
-    hostname: String,
-    socks5: int,
-    social_root: String,
-```
-
-#### Output
-```rust
-struct LastIndex {
-    last_index: u32,
-}
-```
-
-### get_posts
+### get_one_post (COMPLETED)
+Get a single post by id. To be used as notification stream provides post_ids.
 
 #### Input
 ```dart
     hostname: String,
     socks5: int,
     social_root: String,
-    genesis_filter: int,
+    post_id: int,
 ```
 #### Output
-```rust
-struct AllPosts{
-    mine: Vec<PlainPost>,
-    others: Vec<PlainPost>,
-}
-```
 ```rust
 struct PlainPost{
     id: String,
@@ -280,23 +260,37 @@ enum PayloadKind{
 }
 ```
 
-### get_single_post
-Get a single post by id. To be used as notification stream provides post_ids.
+### get_posts
 
 #### Input
 ```dart
     hostname: String,
     socks5: int,
     social_root: String,
-    post_id: int,
+    genesis_filter: int,
 ```
 #### Output
 ```rust
-struct SinglePost {
-    post: PlainPost,
+struct AllPosts{
+    mine: Vec<PlainPost>,
+    others: Vec<PlainPost>,
 }
 ```
 
+### last_index
+#### Input
+```dart
+    hostname: String,
+    socks5: int,
+    social_root: String,
+```
+
+#### Output
+```rust
+struct LastIndex {
+    last_index: u32,
+}
+```
 
 ### leave (COMPLETED)
 

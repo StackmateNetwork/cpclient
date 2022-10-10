@@ -105,18 +105,16 @@ impl Members{
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserIdentity{
     pub social_root: ExtendedPrivKey,
-    pub account: u32,
 }
 
 impl UserIdentity {
-    pub fn new(social_root: String, account: u32)->Result<Self,S5Error>{
+    pub fn new(social_root: String)->Result<Self,S5Error>{
         let social_root = match ExtendedPrivKey::from_str(&social_root){
             Ok(root)=>root,
             Err(_)=>return Err(S5Error::new(ErrorKind::Input, "Bad social root key string."))
         };
         Ok(UserIdentity{
             social_root,
-            account,
         })
     }
     pub fn stringify(&self) -> Result<String, S5Error> {
