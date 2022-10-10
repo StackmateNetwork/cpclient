@@ -9,9 +9,9 @@ It handles all the complex cryptographic tasks and post segregation for clients.
 Stringified JSON is used as IO. 
 
 #### Common Error Output
-```json
-{
-    code: uint, // HTTP STATUS CODES
+```rust
+struct S5Error{
+    code: u32, // HTTP STATUS CODES
     message: String
 }
 ```
@@ -27,31 +27,27 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 
 ### create_social_root (COMPLETED)
 #### Input
-```json
-{
+```dart
     master_root: String,
-    account: uint
-}
+    account: int,
 ```
 #### Output
-```json
-{
+```rust
+struct SocialRoot {
     social_root: String,
 }
 ```
 
 ### server_identity (COMPLETED)
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
-}
 ```
 #### Output
-```json
-{
+```rust
+struct ServerIdentity{
     kind: String, 
     name: String,
 }
@@ -59,20 +55,18 @@ Use a socks5 port to a local tor instance. Use 0 if communicating over clearnet.
 
 ### get_members (COMPLETED)
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
-}
 ```
 #### Output
-```json
-{
-    members:Vec<Member>,
+```rust
+struct Members{
+    identities:Vec<Member>,
 }
 ```
-```json
+```rust
 Member {
     username: String,
     pubkey: String,
@@ -87,19 +81,17 @@ kind must be either "priv/privileged", all other string values will default to "
 count sets how many users a privileged user can invite. Use 0 for standard invitations.
 
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     admin_secret: String,
     kind: String,
-    count: usize,
-}
+    count: int,
 ```
 
 #### Output
-```json
-{
+```rust
+struct Invitation{
     invite_code: String,
 }
 ```
@@ -109,58 +101,52 @@ count sets how many users a privileged user can invite. Use 0 for standard invit
 Only applicable to privileged users created by the admin.
 
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
     invite_code: String,
-}
 ```
 The resulting `invite_code` will be a standard kind, which cannot be used to invite other users.
 
 #### Output
-```json
-{
+```rust
+struct Invitation{
     invite_code: String,
 }
 ```
 
 ### join (COMPLETED)
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
     username: String,
-}
 ```
 #### Output
-```json
-{
+```rust
+struct ServerStatusResponse{
     status: bool
 }
 ```
 
 ### get_badges
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
-    genesis_filter: uint,
-}
+    genesis_filter: int,
 ```
 #### Output
-```json
-{
+```rust
+struct AllBadges{
     badges: Vec<Badge>,
 }
 ```
-```json
-Badge{
+```rust
+struct Badge{
     genesis: String,
     kind: AnnouncementKind,
     by: String,
@@ -179,108 +165,81 @@ AnnouncementKind{
 
 ### give_badge
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String, 
     to: String,
     kind: AnnouncementKind,
-}
 ```
 #### Output
-```json
-{
+```rust
+struct ServerResponseStatus {
     status: bool,
 }
 ```
 
-### create_post
+### post
 
 Users must keep track of the last used index to maintain forward secrecy. The server also keeps track of it, but this should only be used in case of recovery.
 
+`to` semi-colon separated `kind:value` where kind is either "direct" where value is a pubkey OR "group" where value is a group id.
+
+`payload`  semi-colon separated `kind:value` where kind is either "message" where value is a message OR "secret" where value is a hash.
+
+`recipients` comma separated list of pubkeys who can view the post (for whome to make keys).
+ 
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
+    index: int,
     to: String,
-    kind: PayloadKind,
-    message: String,
-    index: uint,
-}
-```
-```enum
-PayloadKind{
-  "Preferences",
-  "Message",
-  "Secret",
+    payload: String,
+    recipients: String,
 }
 ```
 #### Output
-```json
-{
-    post_id: String,
+```rust
+struct SinglePost{
+    post: PlainPost,
 }
 ```
 
 ### last_index
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
-}
 ```
 
 #### Output
-```json
-{
-    last_index: uint,
-}
-```
-### create_post_keys
-Use the same `path` value as the post made. This is required to ensure recipients recieve the correct decryption key.
-
-```json
-{
-    hostname: String,
-    socks5: uint,
-    social_root: String,
-    path: String,
-    post_id: String,
-    recipients: Vec<String>,
-}
-```
-#### Output
-```json
-{
-    status: bool,
+```rust
+struct LastIndex {
+    last_index: u32,
 }
 ```
 
 ### get_posts
 
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
-    genesis_filter: uint,
-}
+    genesis_filter: int,
 ```
 #### Output
-```json
-{
+```rust
+struct AllPosts{
     mine: Vec<PlainPost>,
     others: Vec<PlainPost>,
 }
 ```
-```json
-PlainPost{
+```rust
+struct PlainPost{
     id: String,
     genesis: u64,
     expiry: u64,
@@ -288,24 +247,36 @@ PlainPost{
     post: Post,
 }
 ```
-```json
-Post{
-    to: String,
+```rust
+struct Post{
+    to: Recipient,
     payload: Payload,
     checksum: String,
     signature: String,
 }
 ```
-```json
-Payload{
-    kind: PayloadKind,
-    value: String | Preferences,
+```rust
+struct Recipient{
+    kind: RecipientKind,
+    value: String, //pubkey for direct, gid for group
 }
 ```
-```json
-Preferences{
-    last_path: String,
-    muted: Vec<String>,
+```rust
+enum RecipientKind{
+    Direct,
+    Group,
+}
+```
+```rust
+struct Payload{
+    kind: PayloadKind,
+    value: String,
+}
+```
+```rust
+enum PayloadKind{
+    Message,
+    Secret,
 }
 ```
 
@@ -313,17 +284,15 @@ Preferences{
 Get a single post by id. To be used as notification stream provides post_ids.
 
 #### Input
-```json
-{
+```dart
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
-    post_id: uint,
-}
+    post_id: int,
 ```
 #### Output
-```json
-{
+```rust
+struct SinglePost {
     post: PlainPost,
 }
 ```
@@ -333,16 +302,16 @@ Get a single post by id. To be used as notification stream provides post_ids.
 
 Removes an identity and all associated badges and posts.
 
-```json
+```dart
 {
     hostname: String,
-    socks5: uint,
+    socks5: int,
     social_root: String,
 }
 ```
 #### Output
-```json
-{
+```rust
+struct ServerStatusResponse{
     status: bool,
 }
 ```
@@ -353,13 +322,13 @@ The notification stream api must be handled by the client. To help with this use
 
 #### create_stream_headers
 
-```json
+```rust
 {
     social_root: String,
 }
 ```
 #### Output
-```json
+```rust
 {
     pubkey: String,
     nonce: String,

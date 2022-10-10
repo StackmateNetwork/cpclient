@@ -1,49 +1,18 @@
-use serde::{Deserialize, Serialize};
 use bip39::{Language, Mnemonic};
-use bdk::bitcoin::network::constants::Network;
-use bdk::bitcoin::secp256k1::rand::rngs::OsRng;
-use bdk::bitcoin::secp256k1::Secp256k1;
-use bdk::bitcoin::util::bip32::{ExtendedPrivKey};
-use crate::key::encryption::{cc20p1305_encrypt,cc20p1305_decrypt};
+use bitcoin::network::constants::Network;
+use bitcoin::secp256k1::rand::rngs::OsRng;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::util::bip32::{ExtendedPrivKey};
 use crate::util::e::{ErrorKind, S5Error};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive( Debug, Clone)]
 pub struct MasterKeySeed {
   pub fingerprint: String,
   pub mnemonic: Mnemonic,
   pub xprv: ExtendedPrivKey,
 }
 impl MasterKeySeed{
-
-  pub fn stringify(&self) -> Result<String, S5Error> {
-    match serde_json::to_string(self) {
-        Ok(result) => Ok(result),
-        Err(_) => {
-            Err(S5Error::new(ErrorKind::Internal, "Error stringifying MasterKeySeed"))
-        }
-    }
-  }
-  pub fn structify(stringified: &str) -> Result<MasterKeySeed, S5Error> {
-      match serde_json::from_str(stringified) {
-          Ok(result) => Ok(result),
-          Err(_) => {
-              Err(S5Error::new(ErrorKind::Internal, "Error stringifying MasterKeySeed"))
-          }
-      }
-  }
-  pub fn encrypt(self, password: &str)->String{
-    cc20p1305_encrypt(&self.stringify().unwrap(), &password).unwrap()
-  }
-  pub fn decrypt(cipher: String, password: String)->Result<MasterKeySeed,S5Error>{
-    let master = match cc20p1305_decrypt(&cipher, &password){
-      Ok(value)=>value,
-      Err(e)=>return Err(e)
-    };
-    Ok(MasterKeySeed::structify(&master).unwrap())
-  }
-}
-
-pub fn generate(
+  pub fn generate(
     length: usize, 
     passphrase: &str, 
     network: Network
@@ -102,12 +71,16 @@ pub fn generate(
     })
   }
 
+}
+
+
+
 #[cfg(test)]
 mod tests {
   use super::*;
   #[test]
   fn test_key_ops() {
-    let master_key = generate(9, "password", Network::Testnet).unwrap();
+    let master_key = MasterKeySeed::generate(9, "password", Network::Testnet).unwrap();
     assert_eq!(
       24,
       master_key
@@ -116,7 +89,7 @@ mod tests {
         .collect::<Vec<&str>>()
         .len()
     );
-    let master_key = generate(12, "password", Network::Testnet).unwrap();
+    let master_key = MasterKeySeed::generate(12, "password", Network::Testnet).unwrap();
     assert_eq!(
       12,
       master_key
@@ -125,7 +98,7 @@ mod tests {
         .collect::<Vec<&str>>()
         .len()
     );
-    let master_key = generate(29, "password", Network::Testnet).unwrap();
+    let master_key = MasterKeySeed::generate(29, "password", Network::Testnet).unwrap();
     assert_eq!(
       24,
       master_key
@@ -134,7 +107,7 @@ mod tests {
         .collect::<Vec<&str>>()
         .len()
     );
-    let imported_master_key = import(&master_key.mnemonic.to_string(), "password", Network::Testnet).unwrap();
+    let imported_master_key = MasterKeySeed::import(&master_key.mnemonic.to_string(), "password", Network::Testnet).unwrap();
     assert_eq!(imported_master_key.xprv, master_key.xprv);
     assert_eq!(imported_master_key.fingerprint, master_key.fingerprint);
   }
@@ -142,14 +115,14 @@ mod tests {
   #[test]
   fn test_key_errors() {
     let invalid_mnemonic = "sushi dog road bed cliff thirty five four nine";
-    let imported_key = import(invalid_mnemonic, "password", Network::Testnet)
+    let imported_key = MasterKeySeed::import(invalid_mnemonic, "password", Network::Testnet)
       .err()
       .unwrap();
     let expected_emessage = "mnemonic has a word count that is not a multiple of 6: 9";
     assert_eq!(expected_emessage, imported_key.message);
 
     let invalid_mnemonic = "beach dog road bed cliff thirty five four nine ten eleven tweleve";
-    let imported_key = import(invalid_mnemonic, "password", Network::Testnet)
+    let imported_key = MasterKeySeed::import(invalid_mnemonic, "password", Network::Testnet)
       .err()
       .unwrap();
     let expected_emessage = "mnemonic contains an unknown word (word 3)";

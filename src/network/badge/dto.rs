@@ -7,7 +7,7 @@ use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,OwnedBy,ServerSt
 use crate::network::badge::model::{Badge};
 use crate::util::e::{ErrorKind, S5Error};
 use bitcoin::secp256k1::{XOnlyPublicKey};
-use bdk::bitcoin::secp256k1::schnorr::Signature;
+use bitcoin::secp256k1::schnorr::Signature;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnnouncementRequest{
@@ -190,10 +190,10 @@ mod tests {
     use crate::key::ec;
     use crate::key::seed;
     use crate::key::child;
-    use bdk::bitcoin::network::constants::Network;
+    use bitcoin::network::constants::Network;
     use crate::network::handler::{AnnouncementType};
     use crate::network::handler::{InvitePermission};
-    use bdk::bitcoin::util::bip32::{ExtendedPrivKey};
+    use bitcoin::util::bip32::{ExtendedPrivKey};
     use std::str::FromStr;
 
     #[test]
@@ -211,14 +211,14 @@ mod tests {
         // REGISTER USERS
         let nonce = nonce();
 
-        let seed1 = seed::generate(24, "", Network::Bitcoin).unwrap();
+        let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1);
         let user1 = "builder".to_string() + &nonce[0..3];
 
         assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
-        let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
+        let seed2 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];

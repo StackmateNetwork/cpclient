@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
-
 use ureq::{Proxy, AgentBuilder};
-
 use crate::key::encryption::{nonce};
 use crate::key::ec::{XOnlyPair};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint, InvitePermission, ServerStatusResponse, sign_request};
@@ -282,7 +280,7 @@ mod tests {
         let client_invite_code = admin_invite(url.clone(),None, admin_invite_code,InvitePermission::Standard).unwrap();
         assert_eq!(client_invite_code.invite_code.len() , 32);
         // REGISTER USER
-        let seed = seed::generate(24, "", Network::Bitcoin).unwrap();
+        let seed = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let keys = XOnlyPair::from_keypair(ec::keypair_from_xprv_str(&seed.xprv.to_string()).unwrap());
         let nonce = nonce();
         let username = "ishi".to_string() + &nonce[0..5].to_lowercase();

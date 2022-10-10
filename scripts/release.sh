@@ -1,5 +1,5 @@
 #!/bin/bash
-RELEASE_TAG=v0.12.2
+RELEASE_TAG=v0.2.0
 
 if (( $EUID == 0 )); then
     REPO="/cpclient"

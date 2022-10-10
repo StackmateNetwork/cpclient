@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use bitcoin::secp256k1::{XOnlyPublicKey};
-use bdk::bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::util::bip32::ExtendedPrivKey;
 use crate::key::encryption::{cc20p1305_encrypt,cc20p1305_decrypt};
 use crate::util::e::{ErrorKind, S5Error};
 use crate::key::ec::{XOnlyPair};
@@ -135,11 +135,11 @@ impl UserIdentity {
             }
         }
     }
-    pub fn encrypt(&self, password: String)->String{
-        cc20p1305_encrypt(&self.stringify().unwrap(), &password).unwrap()
+    pub fn encrypt(&self, key: String)->String{
+        cc20p1305_encrypt(&self.stringify().unwrap(), &key).unwrap()
     }
-    pub fn decrypt(cipher: String, password: String)->Result<UserIdentity, S5Error>{
-        let id = match cc20p1305_decrypt(&cipher, &password){
+    pub fn decrypt(cipher: String, key: String)->Result<UserIdentity, S5Error>{
+        let id = match cc20p1305_decrypt(&cipher, &key){
             Ok(value)=>value,
             Err(e)=>return Err(e)
         };
@@ -149,7 +149,7 @@ impl UserIdentity {
     pub fn to_xonly_pair(&self)->XOnlyPair{
        XOnlyPair::from_xprv(self.clone().social_root)
     }
-    pub fn derive_encryption_key(&mut self, index: u32)->String{
+    pub fn derive_encryption_key(&self, index: u32)->String{
         let enc_source = child::hex(self.social_root.to_string(), index).unwrap();
         encryption::key_hash256(&enc_source)
     }

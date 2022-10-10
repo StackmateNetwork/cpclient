@@ -3,15 +3,17 @@ use std::alloc::System;
 #[global_allocator]
 static A: System = System;
 use std::ffi::{CStr};
-// use std::str::FromStr;
+use std::str::FromStr;
 use std::os::raw::c_char;
 // use bdk::bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::secp256k1::{XOnlyPublicKey};
+use bitcoin::util::bip32::ExtendedPrivKey;
 
 mod key;
 use crate::key::{child,ec};
 
 mod network;
-use crate::network::identity;
+use crate::network::{identity,post};
 mod util;
 use crate::util::e::{ErrorKind,S5Error};
 
@@ -318,7 +320,7 @@ pub unsafe extern "C" fn join(
     }
 }
 
-/// REGISTER TO A PRIVATE SERVER
+/// LEAVE A SERVER
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
 /// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.
@@ -362,6 +364,142 @@ pub unsafe extern "C" fn leave(
         Err(e)=>e.c_stringify()
     }
 }
+
+/// CREATE A POST & KEYS
+/// `to` must be colon separated `kind:value` of recipient
+/// `payload` must be a colon separated `kind:value` of payload (watch out for special characters)
+/// `recipients` must be a comma separated list of recipients
+/// # Safety
+/// - This function is unsafe because it dereferences and a returns raw pointer.
+/// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.
+#[no_mangle]
+pub unsafe extern "C" fn post(
+    hostname: *const c_char,
+    socks5: *const c_char,
+    social_root: *const c_char,
+    index: *const c_char,
+    to: *const c_char,
+    payload: *const c_char,
+    recipients: *const c_char,
+) -> *mut c_char {
+    let hostname_cstr = CStr::from_ptr(hostname);
+    let hostname:String = match hostname_cstr.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert hostname to String").c_stringify(),
+    };
+
+    let socks5 = CStr::from_ptr(socks5);
+    let socks5:Option<u32> = match socks5.to_str() {
+        Ok(string) => match string.parse::<u32>(){
+            Ok(result)=>if result == 0 {
+                None
+            }else{
+                Some(result)
+            },
+            Err(_)=>return S5Error::new(ErrorKind::Input,"Could not parse socks5 port to uint32").c_stringify()
+        },
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert socks5 port to String").c_stringify(),
+    };
+    let social_root = CStr::from_ptr(social_root);
+    let social_root:String = match social_root.to_str() {
+        Ok(string) => string.to_string(),
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert social root to String").c_stringify(),
+    };
+    let keypair = match ec::keypair_from_xprv_str(&social_root){
+        Ok(keypair)=>keypair,
+        Err(e)=>return e.c_stringify(),
+    };
+    let xonly_pair = ec::XOnlyPair::from_keypair(keypair);
+    let social_xprv = match ExtendedPrivKey::from_str(&social_root) {
+        Ok(result) => result,
+        Err(_) => return S5Error::new(ErrorKind::Key, "BAD XPRV STRING").c_stringify(),
+    };    
+    
+    let index = CStr::from_ptr(index);
+    let index:u32 = match index.to_str() {
+        Ok(string) => match string.parse::<u32>(){
+            Ok(result)=>result,
+            Err(_)=>return S5Error::new(ErrorKind::Input,"Could not parse index to u32").c_stringify()
+        },
+        Err(_) => return S5Error::new(ErrorKind::Input,"Could not convert index to String").c_stringify(),
+    };
+    let to = CStr::from_ptr(to);
+    let to: post::model::Recipient = match to.to_str(){
+        Ok(result)=>{
+            match post::model::Recipient::from_str(result){
+                Ok(recipient)=>recipient,
+                Err(e)=>return e.c_stringify()
+            }
+        }
+        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert to into String").c_stringify()
+    };
+    let payload = CStr::from_ptr(payload);
+    let payload: post::model::Payload = match payload.to_str(){
+        Ok(result)=>{
+            match post::model::Payload::from_str(result){
+                Ok(payload)=>payload,
+                Err(e)=>return e.c_stringify()
+            }
+        }
+        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert payload into String").c_stringify()
+    };
+
+    let recipients = CStr::from_ptr(recipients);
+
+    let recipients: Vec<XOnlyPublicKey> = match recipients.to_str(){
+        Ok(result)=>{
+           let string_pubkeys: Vec<&str>= result.split(":").collect();
+           let mut xonly_vec: Vec<XOnlyPublicKey> = [].to_vec();
+           for pubkey in string_pubkeys.into_iter(){
+                match ec::pubkey_from_str(pubkey){
+                    Ok(result)=>xonly_vec.push(result),
+                    Err(_)=>return S5Error::new(ErrorKind::Input,"One recipient pubkey is not a valid XOnlyPubKey").c_stringify()
+                };
+           };
+           xonly_vec
+        },
+        Err(_)=>return S5Error::new(ErrorKind::Input,"Could not convert recipients into String").c_stringify()
+    };
+    let my_identity = match identity::model::UserIdentity::new(social_root,0){
+        Ok(result)=>result,
+        Err(e)=>return e.c_stringify()
+    };
+
+    let post = post::model::Post::new(
+        to,
+        payload,
+        xonly_pair.clone()
+    );
+    let encryption_key = my_identity.derive_encryption_key(index);
+    let cypher = post.to_cypher(encryption_key.clone());
+
+    let request = post::dto::ServerPostRequest::new(0,index,&cypher);
+    let post_id = match post::dto::create(hostname.clone(), socks5, xonly_pair.clone(),request){
+        Ok(id)=>id,
+        Err(e)=>return e.c_stringify()
+    };
+    let cypherpost = match post::dto::single_post(hostname.clone(),socks5,xonly_pair.clone(),post_id.clone()){
+        Ok(post)=>post,
+        Err(e)=>return e.c_stringify()
+    };
+
+    let plain_post = match cypherpost.decypher(social_xprv){
+        Ok(post)=>post,
+        Err(e)=>return e.c_stringify()
+    };
+
+    let decryption_keys = match post::model::DecryptionKey::make_for_many(xonly_pair.clone(), recipients, encryption_key.clone()){
+        Ok(keys)=>keys,
+        Err(e)=>return e.c_stringify()
+    };
+
+    match post::dto::keys(hostname.clone(),socks5,xonly_pair.clone(),post_id.clone(),decryption_keys){
+        Ok(())=>plain_post.c_stringify(),
+        Err(e)=>e.c_stringify()
+    }
+
+}
+
 
 
 

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ureq::{Proxy, AgentBuilder};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint,ServerStatusResponse, OwnedBy, sign_request};
 use crate::network::post::model::{LocalPostModel, Post, DecryptionKey};
-use bdk::bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::util::bip32::ExtendedPrivKey;
 use crate::key::encryption::{nonce,key_hash256,cc20p1305_decrypt};
 use crate::key::child;
 use crate::key::ec::{XOnlyPair,xonly_to_public_key};
@@ -370,10 +370,10 @@ impl ServerPostSingleResponse{
     }
 }
 
-pub fn single_post(host: String, socks5: Option<u32>, key_pair: XOnlyPair,post_id: String)->Result<ServerPostModel, S5Error>{
+pub fn single_post(host: String, socks5: Option<u32>, xonly_pair: XOnlyPair,post_id: String)->Result<ServerPostModel, S5Error>{
     let full_url = host + &APIEndPoint::Post(Some(post_id.to_string())).to_string();
     let nonce = nonce();
-    let signature = sign_request(key_pair.clone(), HttpMethod::Get, APIEndPoint::Post(Some(post_id.to_string())), &nonce).unwrap();
+    let signature = sign_request(xonly_pair.clone(), HttpMethod::Get, APIEndPoint::Post(Some(post_id.to_string())), &nonce).unwrap();
     let proxy = if socks5.is_some(){ 
         Some(Proxy::new(&format!("socks5://localhost:{}",socks5.unwrap().to_string())).unwrap())
     }
@@ -391,7 +391,7 @@ pub fn single_post(host: String, socks5: Option<u32>, key_pair: XOnlyPair,post_i
     };
     match agent.get(&full_url)
         .set(&HttpHeader::Signature.to_string(), &signature)
-        .set(&HttpHeader::Pubkey.to_string(), &key_pair.pubkey.to_string())
+        .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .call(){
             Ok(response)=> match ServerPostSingleResponse::structify(&response.into_string().unwrap())
@@ -471,11 +471,11 @@ mod tests {
     use crate::key::ec;
     use crate::key::seed;
     use crate::key::child;
-    use crate::network::post::model::{Post,Payload,Recipient};
-    use bdk::bitcoin::network::constants::Network;
+    use crate::network::post::model::{Post,Payload,PayloadKind,Recipient,RecipientKind};
+    use bitcoin::network::constants::Network;
     use crate::network::identity::model::{UserIdentity};
     use crate::network::handler::{InvitePermission};
-    use bdk::bitcoin::util::bip32::{ExtendedPrivKey};
+    use bitcoin::util::bip32::{ExtendedPrivKey};
     use std::str::FromStr;
     #[test]
     #[ignore]
@@ -492,14 +492,14 @@ mod tests {
         // REGISTER USERS
         let nonce = nonce();
 
-        let seed1 = seed::generate(24, "", Network::Bitcoin).unwrap();
+        let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let user1 = "builder".to_string() + &nonce[0..3];
         let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
         let mut my_identity = UserIdentity::new(social_child1.to_string(),0).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
         assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
-        let seed2 = seed::generate(24, "", Network::Bitcoin).unwrap();
+        let seed2 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];
@@ -508,7 +508,7 @@ mod tests {
         let client_invite_code3 = user_invite(url.clone(), None, xonly_pair2.clone(),client_invite_code2.invite_code.clone()).unwrap();
         assert_eq!(client_invite_code3.invite_code.len() , 32);
 
-        let seed3 = seed::generate(24, "", Network::Bitcoin).unwrap();
+        let seed3 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child3 = ExtendedPrivKey::from_str(&child::social_root(seed3.xprv.to_string(),0).unwrap()).unwrap();
         let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3);
         let user3 = "escrow".to_string() + &nonce[0..3];
@@ -520,8 +520,8 @@ mod tests {
         assert!(user_count>0);
 
         // Create a struct to share
-        let message_to_share = Payload::Message("Hello :)".to_string());
-        let post = Post::new(Recipient::Direct(xonly_pair3.clone().pubkey), message_to_share, xonly_pair1.clone()); 
+        let message_to_share = Payload::new(PayloadKind::Message,"Hello :)".to_string());
+        let post = Post::new(Recipient::new(RecipientKind::Direct,xonly_pair3.clone().pubkey.to_string()), message_to_share, xonly_pair1.clone()); 
         let index = 0;
         let encryption_key = my_identity.derive_encryption_key(index);
         println!("{encryption_key}");

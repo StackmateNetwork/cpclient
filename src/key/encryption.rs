@@ -1,7 +1,7 @@
 use std::{str};
 use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
 use chacha20poly1305::aead::{Aead, NewAead};
-use bdk::bitcoin::secp256k1::rand::{thread_rng,Rng};
+use bitcoin::secp256k1::rand::{thread_rng,Rng};
 use sha2::{Sha256, Digest};
 
 use crate::util::e::{ErrorKind, S5Error};

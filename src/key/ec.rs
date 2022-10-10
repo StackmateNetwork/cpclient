@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::str::{FromStr};
-use bdk::bitcoin::hashes::sha256;
-use bdk::bitcoin::secp256k1::schnorr::Signature;
-use bdk::bitcoin::secp256k1::Secp256k1;
+use bitcoin::hashes::sha256;
+use bitcoin::secp256k1::schnorr::Signature;
+use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::{ecdh::SharedSecret, KeyPair, Message, PublicKey, SecretKey, XOnlyPublicKey};
-use bdk::bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::util::bip32::ExtendedPrivKey;
 
 use crate::util::e::{ErrorKind, S5Error};
 
@@ -127,7 +127,7 @@ pub fn signature_from_str(sig_str: &str) -> Result<Signature, S5Error> {
 mod tests {
   use super::*;
   use crate::key::seed;
-  use bdk::bitcoin::network::constants::Network;
+  use bitcoin::network::constants::Network;
 
   #[test]
   fn test_from_xprv_str() {
@@ -140,7 +140,7 @@ mod tests {
   #[test]
   fn test_schnorr_sigs() {
     let message = "stackmate 1646056571433";
-    let seed = seed::generate(24, "", Network::Bitcoin).unwrap();
+    let seed = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
     let xonlypair = XOnlyPair::from_xprv(seed.xprv);
     let signature = xonlypair.schnorr_sign(message).unwrap();
     schnorr_verify(signature,message, xonlypair.pubkey).unwrap();
@@ -148,10 +148,10 @@ mod tests {
 
   #[test]
   fn test_shared_secret() {
-    let seed = seed::generate(24, "", Network::Bitcoin).unwrap();
+    let seed = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
     let alice_pair = XOnlyPair::from_xprv(seed.xprv);
 
-    let seed = seed::generate(24, "", Network::Bitcoin).unwrap();
+    let seed = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
     let bob_pair = XOnlyPair::from_xprv(seed.xprv);
     // Alice only has Bob's XOnlyPubkey string
     let alice_shared_secret =
