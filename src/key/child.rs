@@ -79,8 +79,7 @@ pub fn secret_key(social_root: String, index: u32) -> Result<String,S5Error>{
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    // use super::*;
     #[test]
     fn test_derivation() {
         

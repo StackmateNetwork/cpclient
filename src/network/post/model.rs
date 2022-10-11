@@ -7,6 +7,7 @@ use crate::util::e::{S5Error,ErrorKind};
 use::std::str::FromStr;
 use std::ffi::CString;
 use std::os::raw::c_char;
+use std::collections::BTreeMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostId {
@@ -71,6 +72,40 @@ impl LocalPostModel{
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PostsAsChat{
+    pub counter_party: String,
+    pub posts: Vec<LocalPostModel>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ChatHistory{
+    pub data: Vec<PostsAsChat>
+}
+
+impl ChatHistory{
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+    }
+    pub fn structify(stringified: &str) -> Result<ChatHistory, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying ChatHistory"))
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AllPosts {
     pub posts: Vec<LocalPostModel>
 }
@@ -96,8 +131,43 @@ impl AllPosts{
         match serde_json::from_str(stringified) {
             Ok(result) => Ok(result),
             Err(_) => {
-                Err(S5Error::new(ErrorKind::Internal, "Error stringifying AllPosts"))
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying AllPosts"))
             }
+        }
+    }
+    pub fn to_all_posts_as_chat(self, my_pubkey: XOnlyPublicKey)->ChatHistory{
+        let mut btree = BTreeMap::<String, Vec<LocalPostModel>>::new();
+        for item in self.posts.into_iter(){
+            let counter_party = match item.clone().post.to.kind{
+                RecipientKind::Direct=>{
+                    if item.clone().owner == my_pubkey {
+                        item.clone().post.to.value
+                    }
+                    else{
+                        item.clone().owner.to_string()
+                    }
+                }
+                RecipientKind::Group=>{
+                    item.clone().post.to.value
+                }
+            };
+
+            if btree.contains_key(&counter_party){
+                btree.entry(counter_party).and_modify(|value| value.push(item));
+            }
+            else{
+                btree.insert(counter_party,[item].to_vec());
+            }
+        };
+        let mut all_pas: Vec<PostsAsChat> = [].to_vec();
+        for (key, value) in btree.iter() {
+            all_pas.push(PostsAsChat{
+                counter_party: key.to_string(),
+                posts: value.clone()
+            });
+        }
+        ChatHistory{
+            data: all_pas
         }
     }
 }
@@ -154,15 +224,6 @@ pub enum RecipientKind {
     Direct,
     Group,
 }
-// impl fmt::Display for RecipientKind {
-//     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-//         match self{
-//             RecipientKind::Direct=>fmt.write_str("direct").unwrap(),
-//             RecipientKind::Group=>fmt.write_str("group").unwrap(),
-//         }
-//         Ok(())
-//     }
-// }
 impl ToString for RecipientKind {
     fn to_string(&self)->String{
         match self{
@@ -312,7 +373,6 @@ impl DerivationIndex{
         CString::new(stringified).unwrap().into_raw()
     }
 }
-
 
 #[cfg(test)]
 mod tests {

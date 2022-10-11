@@ -238,7 +238,7 @@ Get a single post by id. To be used as notification stream provides post_ids.
 ```
 #### Output
 ```rust
-struct PlainPost{
+struct LocalPostModel{
     id: String,
     genesis: u64,
     expiry: u64,
@@ -279,8 +279,9 @@ enum PayloadKind{
 }
 ```
 
-### get_posts
+### get_all_posts (COMPLETED)
 
+Returns all posts for a user, organized as ChatHistory
 #### Input
 ```dart
     hostname: String,
@@ -290,9 +291,14 @@ enum PayloadKind{
 ```
 #### Output
 ```rust
-struct AllPosts{
-    mine: Vec<PlainPost>,
-    others: Vec<PlainPost>,
+struct ChatHistory{
+    data: Vec<PostsAsChat>,
+}
+```
+```rust
+struct PostsAsChat{
+    counter_party: String,
+    posts: Vec<LocalPostModel>
 }
 ```
 

@@ -647,6 +647,7 @@ pub unsafe extern "C" fn get_all_posts(
         Ok(result) => result,
         Err(_) => return S5Error::new(ErrorKind::Key, "BAD XPRV STRING").c_stringify(),
     };    
+    let xonly_pair = ec::XOnlyPair::from_xprv(social_xprv.clone());
 
     let genesis_filter = CStr::from_ptr(genesis_filter);
     let genesis_filter:Option<u64> = match genesis_filter.to_str() {
@@ -667,7 +668,7 @@ pub unsafe extern "C" fn get_all_posts(
     };
     
     match post::dto::get_all_posts(hostname.clone(),socks5,social_xprv.clone(),genesis_filter){
-        Ok(all)=>all.c_stringify(),
+        Ok(all)=>all.to_all_posts_as_chat(xonly_pair.pubkey).c_stringify(),
         Err(e)=> e.c_stringify()
     }
 
@@ -811,7 +812,7 @@ mod tests {
             //
             //
             let nonce = key::encryption::nonce();
-            let username = "ishii".to_string() + &nonce[0..5].to_lowercase();
+            let username = "ishii5".to_string() + &nonce[0..5].to_lowercase();
             let username_cstr = CString::new(username.clone()).unwrap().into_raw();
             let invite_code_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
             let result_ptr = join(
@@ -849,7 +850,7 @@ mod tests {
             //
             //
             let nonce = key::encryption::nonce();
-            let sushi_username = "sushii".to_string() + &nonce[0..5].to_lowercase();
+            let sushi_username = "sushii5".to_string() + &nonce[0..5].to_lowercase();
             let sushi_username_cstr = CString::new(sushi_username.clone()).unwrap().into_raw();
             let invite_code_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
             let result_ptr = join(
@@ -876,7 +877,8 @@ mod tests {
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
             let members = identity::model::Members::structify(result_str);
-            assert!(members.is_ok());
+            println!("{:#?}",members.clone());
+            assert!(members.clone().is_ok());
 
             //
             //
@@ -884,7 +886,7 @@ mod tests {
             //
             //
             let mut sushi_pubkey="".to_string();
-            for identity in members.unwrap().identities{
+            for identity in members.clone().unwrap().identities{
                 if identity.username == sushi_username{
                     sushi_pubkey = identity.pubkey.to_string();
                 }
@@ -960,9 +962,14 @@ mod tests {
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
-            let all_posts = post::model::AllPosts::structify(result_str);
+            println!("{result_str}");
+            let all_posts = post::model::ChatHistory::structify(result_str);
             assert!(all_posts.is_ok());
-            assert_eq!(all_posts.unwrap().posts[0].post.payload.value,message);
+            
+            let mem_len = members.clone().unwrap().identities.len();
+            let user1 = &members.clone().unwrap().identities[mem_len-2];
+            assert_eq!(all_posts.clone().unwrap().data[0].counter_party,user1.pubkey.to_string());
+            assert_eq!(all_posts.clone().unwrap().data[0].posts[0].post.payload.value,message);
             //
             //
             // GET LAST INDEX AS USER1

@@ -464,14 +464,14 @@ mod tests {
     use bitcoin::util::bip32::{ExtendedPrivKey};
     use std::str::FromStr;
     #[test]
-    #[ignore]
+    // #[ignore]
     fn test_post_dto(){
         let url = "http://localhost:3021".to_string();
         // ADMIN INVITE
         let admin_invite_code = "098f6bcd4621d373cade4e832627b4f6".to_string();
         let client_invite_code1 = admin_invite(url.clone(), None,admin_invite_code.clone(),InvitePermission::Standard).unwrap();
         assert_eq!(client_invite_code1.invite_code.len() , 32);
-        
+
         let client_invite_code2 = admin_invite(url.clone(), None,admin_invite_code.clone(),InvitePermission::Privilege(1)).unwrap();
         assert_eq!(client_invite_code2.invite_code.len() , 32);
 
@@ -487,6 +487,8 @@ mod tests {
         
         let seed2 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
+        let fac_identity = UserIdentity::new(social_child2.to_string()).unwrap();
+
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];
         assert!(register(url.clone(), None, xonly_pair2.clone(), client_invite_code2.invite_code.clone(), user2).is_ok());
@@ -496,6 +498,8 @@ mod tests {
 
         let seed3 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let social_child3 = ExtendedPrivKey::from_str(&child::social_root(seed3.xprv.to_string(),0).unwrap()).unwrap();
+        let e_identity = UserIdentity::new(social_child3.to_string()).unwrap();
+
         let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3);
         let user3 = "escrow".to_string() + &nonce[0..3];
         assert!(register(url.clone(), None, xonly_pair3.clone(), client_invite_code3.invite_code, user3).is_ok());
@@ -505,27 +509,53 @@ mod tests {
         let user_count = members.identities.len();
         assert!(user_count>0);
 
-        // Create a struct to share
+        // Create a struct to share as user1 to user3
         let message_to_share = Payload::new(PayloadKind::Message,"Hello :)".to_string());
         let post = Post::new(Recipient::new(RecipientKind::Direct,xonly_pair3.clone().pubkey.to_string()), message_to_share, xonly_pair1.clone()); 
         let index = 0;
         let encryption_key = my_identity.derive_encryption_key(index);
-        println!("{encryption_key}");
         let cypher_json = post.to_cypher(encryption_key.clone());
         let cpost_req = ServerPostRequest::new(0, index,&cypher_json);
         let post_id = create(url.clone(), None,xonly_pair1.clone(), cpost_req).unwrap();
         assert_eq!(post_id.len(), 24);
-        let decrypkeys = DecryptionKey::make_for_many(xonly_pair1.clone(),[xonly_pair2.clone().pubkey,xonly_pair3.clone().pubkey].to_vec(), encryption_key).unwrap();
+        let decrypkeys = DecryptionKey::make_for_many(xonly_pair1.clone(),[xonly_pair3.clone().pubkey].to_vec(), encryption_key).unwrap();
         assert!(keys(url.clone(), None, xonly_pair1.clone(), post_id.clone(),decrypkeys).is_ok());
+
+        // Create a struct to share as user3 to user1
+        let message_to_share = Payload::new(PayloadKind::Message,"Hi guy :)".to_string());
+        let post = Post::new(Recipient::new(RecipientKind::Direct,xonly_pair1.clone().pubkey.to_string()), message_to_share, xonly_pair3.clone()); 
+        let index = 0;
+        let encryption_key = e_identity.derive_encryption_key(index);
+        let cypher_json = post.to_cypher(encryption_key.clone());
+        let cpost_req = ServerPostRequest::new(0, index,&cypher_json);
+        let post_id = create(url.clone(), None,xonly_pair3.clone(), cpost_req).unwrap();
+        assert_eq!(post_id.len(), 24);
+        let decrypkeys = DecryptionKey::make_for_many(xonly_pair3.clone(),[xonly_pair1.clone().pubkey].to_vec(), encryption_key).unwrap();
+        assert!(keys(url.clone(), None, xonly_pair3.clone(), post_id.clone(),decrypkeys).is_ok());
+
+        // Create a struct to share as user2 to group
+        let message_to_share = Payload::new(PayloadKind::Message,"hey fren :)".to_string());
+        let group_id = "s5g91ffac3a6b9ac".to_string();
+        let post = Post::new(Recipient::new(RecipientKind::Group,group_id), message_to_share, xonly_pair2.clone()); 
+        let index = 0;
+        let encryption_key = fac_identity.derive_encryption_key(index);
+        let cypher_json = post.to_cypher(encryption_key.clone());
+        let cpost_req = ServerPostRequest::new(0, index,&cypher_json);
+        let post_id = create(url.clone(), None,xonly_pair2.clone(), cpost_req).unwrap();
+        assert_eq!(post_id.len(), 24);
+        let decrypkeys = DecryptionKey::make_for_many(xonly_pair2.clone(),[xonly_pair1.clone().pubkey,xonly_pair3.clone().pubkey].to_vec(), encryption_key).unwrap();
+        assert!(keys(url.clone(), None, xonly_pair2.clone(), post_id.clone(),decrypkeys).is_ok());
+
         // Get posts & keys as user2
         let all = get_all_posts(url.clone(), None, social_child2.clone(), None).unwrap();
         assert_eq!(all.posts.len(),1);
         // Get posts & keys as user3
         let all = get_all_posts(url.clone(), None, social_child3.clone(), None).unwrap();
-        assert_eq!(all.posts.len(),1);
+        assert_eq!(all.posts.len(),3);
         // Get posts as self
         let all = get_all_posts(url.clone(), None, my_identity.social_root, None).unwrap();
-        assert_eq!(all.posts.len(),1);
+        assert_eq!(all.posts.len(),3);
+        println!("{:#?}",all.to_all_posts_as_chat(xonly_pair1.pubkey));
         // Delete post
         assert!(remove(url.clone(), None,xonly_pair1.clone(), post_id.clone()).is_ok());
         // KEEP BUILDING!
