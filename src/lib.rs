@@ -668,7 +668,7 @@ pub unsafe extern "C" fn get_all_posts(
     };
     
     match post::dto::get_all_posts(hostname.clone(),socks5,social_xprv.clone(),genesis_filter){
-        Ok(all)=>all.to_all_posts_as_chat(xonly_pair.pubkey).c_stringify(),
+        Ok(mut all)=>all.to_all_posts_as_chat(xonly_pair.pubkey).c_stringify(),
         Err(e)=> e.c_stringify()
     }
 
@@ -812,14 +812,14 @@ mod tests {
             //
             //
             let nonce = key::encryption::nonce();
-            let username = "ishii5".to_string() + &nonce[0..5].to_lowercase();
-            let username_cstr = CString::new(username.clone()).unwrap().into_raw();
+            let ishi_username = "ishii5".to_string() + &nonce[0..5].to_lowercase();
+            let ishi_username_cstr = CString::new(ishi_username.clone()).unwrap().into_raw();
             let invite_code_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
             let result_ptr = join(
                 hostname_cstr,
                 socks5_cstr,
                 ishi_social_root_cstr,
-                username_cstr,
+                ishi_username_cstr,
                 invite_code_cstr
             );
             let result_cstr = CStr::from_ptr(result_ptr);
@@ -877,9 +877,8 @@ mod tests {
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
             let members = identity::model::Members::structify(result_str);
-            println!("{:#?}",members.clone());
+            // println!("{:#?}",members.clone());
             assert!(members.clone().is_ok());
-
             //
             //
             // CREATE POST AS USER1
@@ -946,6 +945,56 @@ mod tests {
             let post = post::model::LocalPostModel::structify(result_str);
             assert!(post.is_ok());
             assert_eq!(post.unwrap().post.payload.value,message);
+                        //
+            //
+            // CREATE POST AS USER2
+            //
+            //
+            let mut ishi_pubkey="".to_string();
+            for identity in members.clone().unwrap().identities{
+                if identity.username == ishi_username{
+                    ishi_pubkey = identity.pubkey.to_string();
+                }
+            };
+            let to = "direct:".to_string() + &ishi_pubkey;
+            let to_cstr = CString::new(to.clone()).unwrap().into_raw();
+            let message = "Hi ishi!".to_string();
+            let payload = format!("message:{message}");
+            let payload_cstr = CString::new(payload.clone()).unwrap().into_raw();
+            let index:u32 = 53;
+            let index_cstr = CString::new(index.to_string()).unwrap().into_raw();
+            let result_ptr = send_post(
+                hostname_cstr,
+                socks5_cstr,
+                sushi_social_root_cstr,
+                index_cstr,
+                to_cstr,
+                payload_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let post_id = post::model::PostId::structify(result_str);
+            assert!(post_id.is_ok());
+            //
+            //
+            // SEND KEYS TO USER1
+            //
+            //
+            let recipients = &ishi_pubkey;
+            let recipients_cstr = CString::new(recipients.clone()).unwrap().into_raw();
+            let post_id_cstr = CString::new(post_id.unwrap().id).unwrap().into_raw();
+            let result_ptr = send_keys(
+                hostname_cstr,
+                socks5_cstr,
+                sushi_social_root_cstr,
+                index_cstr,
+                post_id_cstr,
+                recipients_cstr
+            );
+            let result_cstr = CStr::from_ptr(result_ptr);
+            let result_str = result_cstr.to_str().unwrap();
+            let response = network::handler::ServerStatusResponse::structify(result_str).unwrap();
+            assert!(response.status);
             //
             //
             // GET ALL POSTS AS USER2
@@ -962,14 +1011,21 @@ mod tests {
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
-            println!("{result_str}");
-            let all_posts = post::model::ChatHistory::structify(result_str);
+            // println!("{result_str}");
+            let all_posts = post::model::SortedPosts::structify(result_str);
             assert!(all_posts.is_ok());
             
             let mem_len = members.clone().unwrap().identities.len();
-            let user1 = &members.clone().unwrap().identities[mem_len-2];
-            assert_eq!(all_posts.clone().unwrap().data[0].counter_party,user1.pubkey.to_string());
-            assert_eq!(all_posts.clone().unwrap().data[0].posts[0].post.payload.value,message);
+            let user1 = &members.clone().unwrap().identities[mem_len-2]; // we want the second last user
+
+            let all_posts_len = all_posts.clone().unwrap().verified[0].posts.len();
+            assert_eq!(all_posts.clone().unwrap().verified[0].counter_party,user1.pubkey.to_string());
+            assert_eq!(all_posts.clone().unwrap().verified[0].posts[all_posts_len-1].post.payload.value,message); // we compare the last post payload value
+            assert!(all_posts.clone().unwrap().corrupted.last().is_none());
+            assert_eq!(
+                all_posts.clone().unwrap().latest_genesis,
+                all_posts.clone().unwrap().verified[0].posts[all_posts_len-1].genesis
+            ); // we compare against the last post
             //
             //
             // GET LAST INDEX AS USER1
@@ -982,7 +1038,7 @@ mod tests {
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
-            print!("{result_str}");
+            // print!("{result_str}");
             let derivation_index = post::model::DerivationIndex::structify(result_str);
             assert!(derivation_index.is_ok());
             assert_eq!(derivation_index.unwrap().last_used,index);

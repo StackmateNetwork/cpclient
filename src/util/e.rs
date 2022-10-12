@@ -9,7 +9,7 @@ use std::os::raw::c_char;
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum ErrorKind {
   Key,
-  Wallet,
+  Post,
   Network,
   Input,
   NoResource,
@@ -22,7 +22,7 @@ impl Display for ErrorKind {
       ErrorKind::Input => write!(f, "Input"),
       ErrorKind::Internal => write!(f, "OpError"),
       ErrorKind::Key => write!(f, "KeyError"),
-      ErrorKind::Wallet => write!(f, "WalletError"),
+      ErrorKind::Post => write!(f, "PostError"),
       ErrorKind::Network => write!(f, "NetworkError"),
       ErrorKind::NoResource => write!(f, "NoResourceFound"),
 

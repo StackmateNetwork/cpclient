@@ -4,7 +4,6 @@ cpclient is a simplified ffi api interface to a cypherpost server.
 
 It handles all the complex cryptographic tasks and post segregation for clients.
 
-
 ## API
 Stringified JSON is used as IO. 
 
@@ -291,8 +290,10 @@ Returns all posts for a user, organized as ChatHistory
 ```
 #### Output
 ```rust
-struct ChatHistory{
-    data: Vec<PostsAsChat>,
+struct SortedPosts{
+    verified: Vec<PostsAsChat>,
+    corrupted: Vec<String>, // list of post_ids (where checksum verify invalid <soon + decryption failed>)
+    latest_genesis: u64, // use as genesis filter and index with every new added single post
 }
 ```
 ```rust
@@ -353,4 +354,14 @@ The notification stream api must be handled by the client. To help with this use
     nonce: String,
     signature: String
 }
+```
+
+## Testing
+
+Ensure that `dto.rs` tests and `lib.rs` use #[ignore] unless you have a local cypherpost server running or tests will fail.
+
+Run tests on a single thread or you will face errors because dto test entries will effects lib.rs test entries.
+
+```bash
+cargo test -- --test-threads=1
 ```

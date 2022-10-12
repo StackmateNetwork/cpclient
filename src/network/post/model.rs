@@ -1,5 +1,5 @@
 use crate::key::encryption::{self,key_hash256};
-use crate::key::ec::{XOnlyPair,xonly_to_public_key};
+use crate::key::ec::{XOnlyPair,xonly_to_public_key,schnorr_verify};
 use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::secp256k1::{XOnlyPublicKey};
 use serde::{Deserialize, Serialize};
@@ -69,20 +69,40 @@ impl LocalPostModel{
             }
         }
     }
+    pub fn verify(&self)->Result<(),S5Error>{
+      let checksum_message = self.post.to.to_string() + ":" + &self.post.payload.to_string();
+      let checksum = key_hash256(&checksum_message);
+      if checksum != self.post.checksum{
+        Err(S5Error::new(ErrorKind::Post,"Checksum Mismatch! Cannot trust this message"))
+      }
+      else{
+        schnorr_verify(self.post.signature, &self.post.checksum, self.owner)    
+      } 
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostsAsChat{
     pub counter_party: String,
-    pub posts: Vec<LocalPostModel>
+    pub posts: Vec<LocalPostModel>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ChatHistory{
-    pub data: Vec<PostsAsChat>
+pub struct SortedPosts{
+    pub verified: Vec<PostsAsChat>,
+    pub corrupted: Vec<String>,
+    pub latest_genesis: u64,
+
 }
 
-impl ChatHistory{
+impl SortedPosts{
+    pub fn default()->Self{
+      SortedPosts{
+        verified: [].to_vec(),
+        corrupted: [].to_vec(),
+        latest_genesis:0,
+      }
+    }
     pub fn c_stringify(&self) -> *mut c_char {
         let stringified = match serde_json::to_string(self) {
           Ok(result) => result,
@@ -95,11 +115,11 @@ impl ChatHistory{
     
         CString::new(stringified).unwrap().into_raw()
     }
-    pub fn structify(stringified: &str) -> Result<ChatHistory, S5Error> {
+    pub fn structify(stringified: &str) -> Result<SortedPosts, S5Error> {
         match serde_json::from_str(stringified) {
             Ok(result) => Ok(result),
             Err(_) => {
-                Err(S5Error::new(ErrorKind::Internal, "Error structifying ChatHistory"))
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying SortedPosts"))
             }
         }
     }
@@ -135,41 +155,56 @@ impl AllPosts{
             }
         }
     }
-    pub fn to_all_posts_as_chat(self, my_pubkey: XOnlyPublicKey)->ChatHistory{
+    pub fn to_all_posts_as_chat(&mut self, my_pubkey: XOnlyPublicKey)->SortedPosts{
+        if self.posts.len() == 0 {
+          SortedPosts::default();
+        }
+        // earliest first
+        self.posts.sort_by_key(|post| post.genesis);
         let mut btree = BTreeMap::<String, Vec<LocalPostModel>>::new();
-        for item in self.posts.into_iter(){
-            let counter_party = match item.clone().post.to.kind{
-                RecipientKind::Direct=>{
-                    if item.clone().owner == my_pubkey {
-                        item.clone().post.to.value
-                    }
-                    else{
-                        item.clone().owner.to_string()
-                    }
-                }
-                RecipientKind::Group=>{
-                    item.clone().post.to.value
-                }
-            };
+        let mut corrupted:Vec<String> = [].to_vec();
+        for item in self.clone().posts.into_iter(){
+            if item.clone().verify().is_ok(){
+              let counter_party = match item.clone().post.to.kind{
+                  RecipientKind::Direct=>{
+                      if item.clone().owner == my_pubkey {
+                          item.clone().post.to.value
+                      }
+                      else{
+                          item.clone().owner.to_string()
+                      }
+                  }
+                  RecipientKind::Group=>{
+                      item.clone().post.to.value
+                  }
+              };
 
-            if btree.contains_key(&counter_party){
-                btree.entry(counter_party).and_modify(|value| value.push(item));
+              if btree.contains_key(&counter_party){
+                  btree.entry(counter_party).and_modify(|value| value.push(item));
+              }
+              else{
+                  btree.insert(counter_party,[item].to_vec());
+              }
             }
             else{
-                btree.insert(counter_party,[item].to_vec());
+                corrupted.push(item.clone().id);
+                ()
             }
         };
         let mut all_pas: Vec<PostsAsChat> = [].to_vec();
         for (key, value) in btree.iter() {
             all_pas.push(PostsAsChat{
                 counter_party: key.to_string(),
-                posts: value.clone()
+                posts: value.clone(),
             });
         }
-        ChatHistory{
-            data: all_pas
+        SortedPosts{
+            verified: all_pas,
+            corrupted,
+            latest_genesis:self.posts[self.posts.len() - 1].genesis,
         }
     }
+
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

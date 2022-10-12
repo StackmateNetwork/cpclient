@@ -339,12 +339,13 @@ fn others_posts(host: String, socks5: Option<u32>, key_pair: XOnlyPair, filter: 
 }
 
 fn process_cypherposts(social_root: ExtendedPrivKey,posts: Vec<ServerPostModel>)->Result<AllPosts,S5Error>{
-    let mut plains = posts.into_iter().map(
-        |post| {
-            post.decypher(social_root).unwrap()
+    let mut plains: Vec<LocalPostModel> = [].to_vec();
+    for post in posts.into_iter(){
+        match post.decypher(social_root){
+            Ok(result)=>plains.push(result),
+            Err(_)=>()
         }
-    ).collect::<Vec<LocalPostModel>>();
-    plains.sort_by_key(|post| post.genesis);
+    }
     Ok(AllPosts::new(plains))
 }
 
@@ -464,7 +465,7 @@ mod tests {
     use bitcoin::util::bip32::{ExtendedPrivKey};
     use std::str::FromStr;
     #[test]
-    // #[ignore]
+    #[ignore]
     fn test_post_dto(){
         let url = "http://localhost:3021".to_string();
         // ADMIN INVITE
@@ -553,7 +554,7 @@ mod tests {
         let all = get_all_posts(url.clone(), None, social_child3.clone(), None).unwrap();
         assert_eq!(all.posts.len(),3);
         // Get posts as self
-        let all = get_all_posts(url.clone(), None, my_identity.social_root, None).unwrap();
+        let mut all = get_all_posts(url.clone(), None, my_identity.social_root, None).unwrap();
         assert_eq!(all.posts.len(),3);
         println!("{:#?}",all.to_all_posts_as_chat(xonly_pair1.pubkey));
         // Delete post
