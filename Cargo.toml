@@ -1,11 +1,11 @@
 [package]
 name = "cpclient"
-authors = ["i5hi"]
+authors = ["ishi"]
 description = "Rust-C FFI exposing composite functionality to interface with cypherpost."
 edition = "2018"
 keywords = ["cypherpost-client", "rust-c-ffi"]
 license = "MIT"
-version = "0.1.0"
+version = "0.1.1"
 
 
 [lib]

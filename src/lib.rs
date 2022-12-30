@@ -361,7 +361,6 @@ pub unsafe extern "C" fn leave(
 /// CREATE A POST & KEYS
 /// `to` must be colon separated `kind:value` of recipient
 /// `payload` must be a colon separated `kind:value` of payload (watch out for special characters)
-/// `recipients` must be a comma separated list of recipients
 /// # Safety
 /// - This function is unsafe because it dereferences and a returns raw pointer.
 /// - ENSURE that result is passed into cstring_free(ptr: *mut c_char) after use.

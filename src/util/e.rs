@@ -40,14 +40,14 @@ impl PartialEq for ErrorKind {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct S5Error {
   pub kind: String,
-  pub message: String,
+  pub error: String,
 }
 
 impl S5Error {
   pub fn new(kind: ErrorKind, message: &str) -> Self {
     S5Error {
       kind: kind.to_string(),
-      message: message.to_string(),
+      error: message.to_string(),
     }
   }
   pub fn from_ureq(e: ureq::Error)->Self{

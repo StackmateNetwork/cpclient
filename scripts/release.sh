@@ -1,10 +1,10 @@
 #!/bin/bash
-RELEASE_TAG=v0.2.0
+RELEASE_TAG=v0.1.1
 
 if (( $EUID == 0 )); then
     REPO="/cpclient"
 else
-    REPO="$HOME/StackmateNetwork/cpclient"
+    REPO="$HOME/operator/TomaTech/CypherPost/Code/cpclient"
 fi
 
 

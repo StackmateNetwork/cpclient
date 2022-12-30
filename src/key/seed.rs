@@ -119,13 +119,13 @@ mod tests {
       .err()
       .unwrap();
     let expected_emessage = "mnemonic has a word count that is not a multiple of 6: 9";
-    assert_eq!(expected_emessage, imported_key.message);
+    assert_eq!(expected_emessage, imported_key.error);
 
     let invalid_mnemonic = "beach dog road bed cliff thirty five four nine ten eleven tweleve";
     let imported_key = MasterKeySeed::import(invalid_mnemonic, "password", Network::Testnet)
       .err()
       .unwrap();
     let expected_emessage = "mnemonic contains an unknown word (word 3)";
-    assert_eq!(expected_emessage, imported_key.message);
+    assert_eq!(expected_emessage, imported_key.error);
   }
 }

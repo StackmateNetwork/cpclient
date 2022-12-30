@@ -14,6 +14,7 @@ use std::os::raw::c_char;
 pub struct ServerIdentity{
     pub kind: String,
     pub name: String,
+    pub pubkey : String,
 }
 
 impl ServerIdentity{
