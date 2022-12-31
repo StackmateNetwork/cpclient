@@ -44,7 +44,7 @@ pub unsafe extern "C" fn create_social_root(
     };
 
     match child::social_root(master_root, account){
-        Ok(result)=>child::SocialRoot::new(result).c_stringify(),
+        Ok(result)=>result.c_stringify(),
         Err(e)=>e.c_stringify()
     }
 }
@@ -211,6 +211,7 @@ pub unsafe extern "C" fn priv_user_invite(
         Err(e)=>e.c_stringify()
     }
 }
+
 /// GET ALL MEMBERS ON THE SERVER
 /// USE TO ENSURE USERNAME OF CHOICE IS NOT TAKEN
 /// # Safety
@@ -310,7 +311,7 @@ pub unsafe extern "C" fn join(
     };
 
     match identity::dto::register(hostname, socks5, xonly_pair,invite_code,username){
-        Ok(_)=>network::handler::ServerStatusResponse::new(true).c_stringify(),
+        Ok(result)=>result.c_stringify(),
         Err(e)=>e.c_stringify()
     }
 }
@@ -773,7 +774,7 @@ mod tests {
             let hostname_cstr = CString::new(hostname.clone()).unwrap().into_raw();
             let socks5 = "0";
             let socks5_cstr = CString::new(socks5).unwrap().into_raw();
-            let ishi_social_root_cstr =  CString::new(ishi_child.unwrap().social_root).unwrap().into_raw();
+            let ishi_social_root_cstr =  CString::new(ishi_child.unwrap().xprv).unwrap().into_raw();
             let result_ptr = server_identity(
                 hostname_cstr,
                 socks5_cstr,
@@ -786,13 +787,13 @@ mod tests {
             //
             //
             // ADMIN OPS (GET INVITE)
-            //
-            //
+            //098f6bcd4621d373cade4e832627b4f6
+            //9caff0735bc6e80121cedcb98ca51821
             let admin_secret = "098f6bcd4621d373cade4e832627b4f6";
             let admin_secret_cstr = CString::new(admin_secret).unwrap().into_raw();
             let kind = "priv";
             let kind_cstr = CString::new(kind).unwrap().into_raw();
-            let count = "1";
+            let count = "2";
             let count_cstr = CString::new(count).unwrap().into_raw();
             let result_ptr = admin_invite(
                 hostname_cstr,
@@ -823,21 +824,21 @@ mod tests {
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
-            println!("{result_str}");
-            let response = network::handler::ServerStatusResponse::structify(result_str).unwrap();
-            assert!(response.status);
+            let invitation_detail = identity::model::InvitationDetail::structify(result_str).unwrap();
+            assert_eq!(invitation_detail.invite_code.len() , 32);
+            assert_eq!(invitation_detail.created_by , "ADMIN".to_string());
             //
             //
             // PRIV USER INVITE
             //
             //
-            let sushi_social_root_cstr =  CString::new(sushi_child.unwrap().social_root).unwrap().into_raw();
+            let sushi_social_root_cstr =  CString::new(sushi_child.clone().unwrap().xprv).unwrap().into_raw();
             let invite_cstr = CString::new(invitation.invite_code.clone()).unwrap().into_raw();
             let result_ptr = priv_user_invite(
                 hostname_cstr,
                 socks5_cstr,
-                sushi_social_root_cstr,
-                invite_cstr,
+                sushi_social_root_cstr.clone(),
+                invite_cstr.clone(),
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
@@ -861,8 +862,9 @@ mod tests {
             );
             let result_cstr = CStr::from_ptr(result_ptr);
             let result_str = result_cstr.to_str().unwrap();
-            let response = network::handler::ServerStatusResponse::structify(result_str).unwrap();
-            assert!(response.status);
+            let invitation_detail = identity::model::InvitationDetail::structify(result_str).unwrap();
+            assert_eq!(invitation_detail.invite_code.len() , 32);
+            assert_eq!(invitation_detail.kind , "STANDARD".to_owned());
             //
             //
             // GET MEMBERS

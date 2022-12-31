@@ -51,7 +51,40 @@ impl Invitation{
         match serde_json::from_str(stringified) {
             Ok(result) => Ok(result),
             Err(_) => {
-                Err(S5Error::new(ErrorKind::Internal, "Error stringifying Invitation"))
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying Invitation"))
+            }
+        }
+    }
+    pub fn c_stringify(&self) -> *mut c_char {
+        let stringified = match serde_json::to_string(self) {
+          Ok(result) => result,
+          Err(_) => {
+            return CString::new("Error:JSON Stringify Failed. BAD NEWS! Contact Support.")
+              .unwrap()
+              .into_raw()
+          }
+        };
+    
+        CString::new(stringified).unwrap().into_raw()
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InvitationDetail{
+    pub genesis: u128,
+    pub invite_code: String,
+    pub claimed_by: String,
+    pub created_by: String,
+    pub status: String,
+    pub kind: String,
+    pub count: u128,
+}
+
+impl InvitationDetail{
+    pub fn structify(stringified: &str) -> Result<InvitationDetail, S5Error> {
+        match serde_json::from_str(stringified) {
+            Ok(result) => Ok(result),
+            Err(_) => {
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying InvitationDetail"))
             }
         }
     }

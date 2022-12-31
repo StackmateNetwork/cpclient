@@ -212,14 +212,14 @@ mod tests {
         let nonce = nonce();
 
         let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap().xprv).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1);
         let user1 = "builder".to_string() + &nonce[0..3];
 
         assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
         let seed2 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap().xprv).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
         let user2 = "facilitator".to_string() + &nonce[0..3];
         

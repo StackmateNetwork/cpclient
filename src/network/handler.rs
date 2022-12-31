@@ -48,6 +48,7 @@ impl HttpHeader{
 pub enum APIEndPoint{
     AdminInvite(InvitePermission),
     UserInvite,
+    UserInviteDetail,
     Identity,
     ServerIdentity,
     AllIdentities,
@@ -128,6 +129,7 @@ impl APIEndPoint{
         match self{
             APIEndPoint::AdminInvite(perm)=>"/api/v2/identity/admin/invitation?".to_string() +&perm.to_query(),
             APIEndPoint::UserInvite=>"/api/v2/identity/invitation".to_string(),
+            APIEndPoint::UserInviteDetail=>"/api/v2/identity/invitation/detail".to_string(),
             APIEndPoint::Identity=>"/api/v2/identity".to_string(),
             APIEndPoint::ServerIdentity=>"/api/v2/identity/server".to_string(),
             APIEndPoint::AllIdentities=>"/api/v2/identity/all".to_string(),
@@ -167,7 +169,7 @@ impl ServerStatusResponse{
         match serde_json::from_str(stringified) {
             Ok(result) => Ok(result),
             Err(_) => {
-                Err(S5Error::new(ErrorKind::Internal, "Error stringifying ServerStatusResponse"))
+                Err(S5Error::new(ErrorKind::Internal, "Error structifying ServerStatusResponse"))
             }
         }
     }

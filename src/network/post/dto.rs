@@ -481,13 +481,13 @@ mod tests {
 
         let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
         let user1 = "builder".to_string() + &nonce[0..3];
-        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap().xprv).unwrap();
         let my_identity = UserIdentity::new(social_child1.to_string()).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(my_identity.social_root);
         assert!(register(url.clone(), None, xonly_pair1.clone(), client_invite_code1.invite_code, user1).is_ok());
         
         let seed2 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap().xprv).unwrap();
         let fac_identity = UserIdentity::new(social_child2.to_string()).unwrap();
 
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
@@ -498,7 +498,7 @@ mod tests {
         assert_eq!(client_invite_code3.invite_code.len() , 32);
 
         let seed3 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child3 = ExtendedPrivKey::from_str(&child::social_root(seed3.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child3 = ExtendedPrivKey::from_str(&child::social_root(seed3.xprv.to_string(),0).unwrap().xprv).unwrap();
         let e_identity = UserIdentity::new(social_child3.to_string()).unwrap();
 
         let xonly_pair3 = ec::XOnlyPair::from_xprv(social_child3);

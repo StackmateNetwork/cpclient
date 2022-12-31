@@ -422,10 +422,10 @@ mod tests {
     #[test]
     fn test_post_mode() {
         let seed1 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child1 = ExtendedPrivKey::from_str(&child::social_root(seed1.xprv.to_string(),0).unwrap().xprv).unwrap();
         let xonly_pair1 = ec::XOnlyPair::from_xprv(social_child1);
         let seed2 = seed::MasterKeySeed::generate(24, "", Network::Bitcoin).unwrap();
-        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap()).unwrap();
+        let social_child2 = ExtendedPrivKey::from_str(&child::social_root(seed2.xprv.to_string(),0).unwrap().xprv).unwrap();
         let xonly_pair2 = ec::XOnlyPair::from_xprv(social_child2);
 
         let one_post = Post::new(

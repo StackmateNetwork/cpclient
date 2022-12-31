@@ -3,7 +3,7 @@ use ureq::{Proxy, AgentBuilder};
 use crate::key::encryption::{nonce};
 use crate::key::ec::{XOnlyPair};
 use crate::network::handler::{HttpHeader,HttpMethod,APIEndPoint, InvitePermission, ServerStatusResponse, sign_request};
-use crate::network::identity::model::{ServerIdentity,Invitation,Members,};
+use crate::network::identity::model::{ServerIdentity,Invitation,Members,InvitationDetail};
 use crate::util::e::{ErrorKind, S5Error};
 
 
@@ -134,7 +134,7 @@ impl IdentityRegisterRequest{
     }
 }
 
-pub fn register(host: String, socks5: Option<u32>, xonly_pair: XOnlyPair, invite_code: String, username: String)->Result<(), S5Error>{
+pub fn register(host: String, socks5: Option<u32>, xonly_pair: XOnlyPair, invite_code: String, username: String)->Result<InvitationDetail, S5Error>{
     let full_url = host + &APIEndPoint::Identity.to_string();
     let nonce = nonce();
     let signature = sign_request(xonly_pair.clone(), HttpMethod::Post, APIEndPoint::Identity, &nonce).unwrap();
@@ -160,23 +160,16 @@ pub fn register(host: String, socks5: Option<u32>, xonly_pair: XOnlyPair, invite
         .set(&HttpHeader::Pubkey.to_string(), &xonly_pair.pubkey.to_string())
         .set(&HttpHeader::Nonce.to_string(), &nonce)
         .send_json(body){
-            Ok(response)=>  
-                match ServerStatusResponse::structify(&response.into_string().unwrap())
-                {
-                    Ok(result)=>{
-                        if result.status {
-                            Ok(())
-                        }
-                        else {
-                            Err(S5Error::new(ErrorKind::Network, "Server returned a false status."))
-                        }
-                    },
+            Ok(response)=>  Ok(
+                match InvitationDetail::structify(&response.into_string().unwrap()){
+                    Ok(result)=>result,
                     Err(e) =>{
-                        Err(e)
+                        return Err(e);
                     }
-                }            
+                }
+            ),
             Err(e)=>{
-                Err(S5Error::from_ureq(e))
+                return Err(S5Error::from_ureq(e))
             }
         }
 }
