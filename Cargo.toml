@@ -5,7 +5,7 @@ description = "Rust-C FFI exposing composite functionality to interface with cyp
 edition = "2018"
 keywords = ["cypherpost-client", "rust-c-ffi"]
 license = "MIT"
-version = "0.1.6"
+version = "0.1.7"
 
 
 [lib]

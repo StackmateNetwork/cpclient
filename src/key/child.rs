@@ -1,5 +1,6 @@
 extern crate bip85;
 use crate::util::e::{ErrorKind, S5Error};
+use crate::key::ec;
 use bip85::bitcoin::secp256k1::Secp256k1;
 use bip85::bitcoin::util::bip32::ExtendedPrivKey;
 use serde::{Deserialize, Serialize};
@@ -11,11 +12,12 @@ use std::str::FromStr;
 pub struct SocialRoot {
     pub xprv: String,
     pub mnemonic: String,
+    pub pubkey: String,
 }
 
 impl SocialRoot {
-    pub fn new(xprv: String, mnemonic: String) -> Self {
-        SocialRoot { xprv, mnemonic }
+    pub fn new(xprv: String, mnemonic: String, pubkey: String) -> Self {
+        SocialRoot { xprv, mnemonic, pubkey }
     }
     pub fn c_stringify(&self) -> *mut c_char {
         let stringified = match serde_json::to_string(self) {
@@ -57,10 +59,13 @@ pub fn social_root(master_root: String, index: u32) -> Result<SocialRoot, S5Erro
         Ok(xprv) => xprv,
         Err(e) => return Err(S5Error::new(ErrorKind::Key, &e.to_string())),
     };
-
+    let keypair = ec::keypair_from_xprv_str(&social_root.to_string())?;
+    let xonly = ec::XOnlyPair::from_keypair(keypair);
+ 
     Ok(SocialRoot::new(
         social_root.to_string(),
         social_menmonic.to_string(),
+        xonly.pubkey.to_string(),
     ))
 }
 pub fn mnemonic_12(master_root: String, index: u32) -> Result<String, S5Error> {
